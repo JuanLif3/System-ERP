@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { Auth } from '../auth/decorators/auth.decorator';
@@ -18,5 +18,10 @@ export class OrdersController {
   @Get()
   findAll(@GetUser() user: User) {
     return this.ordersService.findAll(user);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string, @GetUser() user: User) {
+    return this.ordersService.remove(id, user);
   }
 }

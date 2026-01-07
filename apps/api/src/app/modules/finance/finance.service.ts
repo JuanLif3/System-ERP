@@ -17,13 +17,7 @@ export class FinanceService {
   async getDashboardData(user: User) {
     const companyId = user.company.id;
 
-    // Ejecutamos 4 consultas en paralelo para máxima velocidad
-    const [
-      generalStats, 
-      todaySales, 
-      topProducts, 
-      categoriesSales
-    ] = await Promise.all([
+    const [generalStats, todaySales, topProducts, categoriesSales] = await Promise.all([
       this.getGeneralStats(companyId),
       this.getTodaySalesCount(companyId),
       this.getTopSellingProducts(companyId),
@@ -32,22 +26,67 @@ export class FinanceService {
 
     return {
       cards: {
-        totalRevenue: parseFloat(generalStats.totalRevenue || '0'), // Ingresos Totales
-        totalSales: parseInt(generalStats.totalSales || '0'),       // Ventas Totales (Histórico)
-        averageTicket: parseFloat(generalStats.averageTicket || '0'), // Promedio de venta
-        todaySales: todaySales,                                     // Ventas de hoy (Reinicia diario)
+        totalRevenue: parseFloat(generalStats.totalRevenue || '0'),
+        totalSales: parseInt(generalStats.totalSales || '0'),
+        averageTicket: parseFloat(generalStats.averageTicket || '0'),
+        todaySales: todaySales,
       },
       charts: {
-        topProducts,
-        categoriesSales
+        topProducts: topProducts.map(p => ({
+            name: p.name,
+            value: parseInt(p.value),
+            revenue: parseFloat(p.revenue)
+        })),
+        categoriesSales: categoriesSales.map(c => ({
+            name: c.name || 'Sin Categoría',
+            value: parseInt(c.value || '0')
+        })),
+        // salesHistory: ... YA NO LO ENVIAMOS AQUÍ
       }
     };
   }
 
-  // --- CONSULTAS SQL BUILDER ---
+  // --- NUEVO MÉTODO DINÁMICO ---
+  async getSalesHistory(companyId: string, range: string) {
+    let days = 7;
+    let groupBy = "TO_CHAR(order.createdAt, 'DD/MM')"; // Por defecto: Día/Mes
+
+    // Lógica de Rangos
+    switch (range) {
+      case '30d':
+        days = 30;
+        break;
+      case '3m':
+        days = 90;
+        break;
+      case '1y':
+        days = 365;
+        groupBy = "TO_CHAR(order.createdAt, 'MM/YY')"; // Mes/Año para anual
+        break;
+      default:
+        days = 7;
+    }
+
+    // Calculamos la fecha de inicio
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const data = await this.orderRepository
+      .createQueryBuilder('order')
+      .select(groupBy, 'date')
+      .addSelect('SUM(order.total)', 'total')
+      .where('order.company.id = :companyId', { companyId })
+      .andWhere('order.createdAt >= :startDate', { startDate }) // Filtro de fecha
+      .groupBy(groupBy)
+      .orderBy('MIN(order.createdAt)', 'ASC')
+      .getRawMany();
+
+    return data.map(d => ({ date: d.date, total: parseFloat(d.total) }));
+  }
+
+  // --- CONSULTAS SQL ---
 
   private async getGeneralStats(companyId: string) {
-    // Calcula suma total, conteo total y promedio en una sola consulta
     return await this.orderRepository
       .createQueryBuilder('order')
       .select('SUM(order.total)', 'totalRevenue')
@@ -58,12 +97,14 @@ export class FinanceService {
   }
 
   private async getTodaySalesCount(companyId: string) {
-    // Calculamos el rango de fechas de HOY
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+    // Ajuste Zona Horaria CHILE (UTC-3 o UTC-4)
+    // Para simplificar, usamos el objeto Date nativo que tomará la hora del servidor
+    // Si quieres forzar Chile, definimos el inicio del día manualmente.
     
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+    const now = new Date();
+    // Creamos una fecha que representa las 00:00 de hoy
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
 
     return await this.orderRepository
       .createQueryBuilder('order')
@@ -73,13 +114,13 @@ export class FinanceService {
   }
 
   private async getTopSellingProducts(companyId: string) {
-    // Top 5 Productos más vendidos (Sumando cantidades de OrderItems)
     return await this.orderItemRepository
       .createQueryBuilder('item')
       .leftJoin('item.product', 'product')
-      .leftJoin('item.order', 'order') // Necesario para filtrar por compañía
+      .leftJoin('item.order', 'order')
       .select('product.name', 'name')
-      .addSelect('SUM(item.quantity)', 'value') // 'value' es estándar para librerías de gráficos
+      .addSelect('SUM(item.quantity)', 'value') 
+      .addSelect('SUM(item.quantity * item.price)', 'revenue') // <--- Calculamos ganancia (cantidad * precio)
       .where('order.company.id = :companyId', { companyId })
       .groupBy('product.id')
       .addGroupBy('product.name')
@@ -89,8 +130,7 @@ export class FinanceService {
   }
 
   private async getSalesByCategory(companyId: string) {
-    // Ventas agrupadas por Categoría
-    return await this.orderItemRepository
+    const results = await this.orderItemRepository
       .createQueryBuilder('item')
       .leftJoin('item.product', 'product')
       .leftJoin('product.category', 'category')
@@ -101,5 +141,26 @@ export class FinanceService {
       .groupBy('category.id')
       .addGroupBy('category.name')
       .getRawMany();
+
+    // Fix manual para asegurar que value sea accesible aunque la DB lo devuelva raro
+    return results.map(r => ({ name: r.name, value: r.value }));
+  }
+
+  // --- NUEVA CONSULTA: Gráfico de Línea (Últimos 7 días) ---
+  private async getLast7DaysSales(companyId: string) {
+    // Esta consulta agrupa las ventas por fecha (Día-Mes)
+    // Nota: SQL puro a veces es mejor para fechas, pero TypeORM lo hace así:
+    
+    const data = await this.orderRepository
+      .createQueryBuilder('order')
+      .select("TO_CHAR(order.createdAt, 'DD/MM')", 'date') // Formato día/mes (Postgres)
+      .addSelect('SUM(order.total)', 'total')
+      .where('order.company.id = :companyId', { companyId })
+      .groupBy("TO_CHAR(order.createdAt, 'DD/MM')")
+      .orderBy('MIN(order.createdAt)', 'ASC') // Ordenar cronológicamente
+      .limit(7)
+      .getRawMany();
+
+    return data.map(d => ({ date: d.date, total: parseFloat(d.total) }));
   }
 }

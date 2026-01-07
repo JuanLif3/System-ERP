@@ -1,17 +1,13 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from './components/layout/MainLayout';
-import { LoginPage } from './modules/auth/LoginPage';
-import { DashboardPage } from './modules/finance/DashboardPage'; // <--- Importar
-import { InventoryPage } from './modules/inventory/InventoryPage';
-import { SalesPage } from './modules/sales/SalesPage';
-import { ExpensesPage } from './modules/expenses/ExpensesPage';
-import { UsersPage } from './modules/users/UsersPage';
+import { RoleGuard } from './components/layout/RoleGuard'; // <--- Importar
 
-// Placeholders restantes
-const Sales = () => <h1 className="text-3xl font-bold text-slate-800">Ventas y Pedidos</h1>;
-const Inventory = () => <h1 className="text-3xl font-bold text-slate-800">Gestión de Inventario</h1>;
-const Users = () => <h1 className="text-3xl font-bold text-slate-800">Usuarios</h1>;
-const Expenses = () => <h1 className="text-3xl font-bold text-slate-800">Gastos</h1>;
+import { LoginPage } from './modules/auth/LoginPage';
+import { DashboardPage } from './modules/finance/DashboardPage';
+import { SalesPage } from './modules/sales/SalesPage';
+import { InventoryPage } from './modules/inventory/InventoryPage';
+import { UsersPage } from './modules/users/UsersPage';
+import { ExpensesPage } from './modules/expenses/ExpensesPage';
 
 export function App() {
   return (
@@ -19,16 +15,28 @@ export function App() {
       <Route path="/login" element={<LoginPage />} />
 
       <Route path="/" element={<MainLayout />}>
+        {/* Redirección inteligente: Si entra a raíz, decide según rol (Opcional, por ahora dejamos dashboard) */}
         <Route index element={<Navigate to="/dashboard" replace />} />
+
+        {/* --- ZONA PROTEGIDA: ADMIN Y MANAGER --- */}
+        <Route element={<RoleGuard allowedRoles={['ADMIN', 'MANAGER']} />}>
+          <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="expenses" element={<ExpensesPage />} />
+        </Route>
+
+        {/* --- ZONA PROTEGIDA: ADMIN Y SELLER --- */}
+        <Route element={<RoleGuard allowedRoles={['ADMIN', 'SELLER']} />}>
+           <Route path="sales" element={<SalesPage />} />
+        </Route>
         
-        {/* Aquí usamos el componente real */}
-        <Route path="dashboard" element={<DashboardPage />} />
+        {/* --- ZONA COMÚN: TODOS --- */}
         <Route path="inventory" element={<InventoryPage />} />
-        
-        <Route path="sales" element={<SalesPage />} />
-        <Route path="inventory" element={<Inventory />} />
-        <Route path="users" element={<UsersPage />} />
-        <Route path="expenses" element={<ExpensesPage />} />
+
+        {/* --- ZONA SOLO ADMIN --- */}
+        <Route element={<RoleGuard allowedRoles={['ADMIN']} />}>
+          <Route path="users" element={<UsersPage />} />
+        </Route>
+
       </Route>
       
       <Route path="*" element={<Navigate to="/login" replace />} />

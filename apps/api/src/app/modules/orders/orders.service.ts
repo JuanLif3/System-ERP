@@ -121,4 +121,48 @@ export class OrdersService {
     this.logger.error(error);
     throw new InternalServerErrorException('Error al procesar la orden');
   }
+
+  async remove(id: string, user: User) {
+    // 1. Verificar Permisos (Solo ADMIN puede anular)
+    if (user.roles !== 'ADMIN') {
+      throw new BadRequestException('Solo los administradores pueden anular ventas');
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // 2. Buscar la orden con sus items para saber qué devolver
+      const order = await queryRunner.manager.findOne(Order, {
+        where: { id, company: { id: user.company.id } },
+        relations: ['items', 'items.product'],
+      });
+
+      if (!order) throw new NotFoundException('Orden no encontrada');
+
+      // 3. Devolver Stock (Reversa)
+      for (const item of order.items) {
+        // Incrementamos el stock del producto
+        await queryRunner.manager.increment(
+            Product, 
+            { id: item.product.id }, 
+            'stock', 
+            item.quantity
+        );
+      }
+
+      // 4. Eliminar la Orden (Cascade borrará los items)
+      await queryRunner.manager.remove(order);
+
+      await queryRunner.commitTransaction();
+      return { message: 'Venta anulada y stock restaurado' };
+
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
 }
