@@ -1,26 +1,58 @@
-import { Injectable } from '@nestjs/common';
-import { CreateAuthDto } from './dto/create-auth.dto';
-import { UpdateAuthDto } from './dto/update-auth.dto';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { InjectRepository } from '@nestjs/typeorm';
+import * as bcrypt from 'bcrypt';
+import { Repository } from 'typeorm';
+
+import { User } from '../users/entities/user.entity';
+import { LoginDto } from './dto/login.dto'; 
+import { JwtPayload } from './interfaces/jwt-payload.interface';
 
 @Injectable()
 export class AuthService {
-  create(createAuthDto: CreateAuthDto) {
-    return 'This action adds a new auth';
-  }
+  constructor(
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    private readonly jwtService: JwtService,
+  ) {}
 
-  findAll() {
-    return `This action returns all auth`;
-  }
+  async login(loginDto: LoginDto) {
+    const { password, email } = loginDto;
 
-  findOne(id: number) {
-    return `This action returns a #${id} auth`;
-  }
+    // 1. Buscar usuario por email (incluyendo la relacion con la compañia)
+    const user = await this.userRepository.findOne({
+      where: { email },
+      relations: ['company'], // Muy importante para multi-tenancy
+      select: {
+        id: true,
+        password: true,
+        email: true,
+        fullName: true,
+        roles: true,
+        company: { id: true, name: true} // Solo traemos lo necesario de company
+      }
+    });
 
-  update(id: number, updateAuthDto: UpdateAuthDto) {
-    return `This action updates a #${id} auth`;
-  }
+    // 2. Validar si existe y si la contraseña coincide
+    if (!user || !bcrypt.compareSync(password, user.password)) {
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
 
-  remove(id: number) {
-    return `This action removes a #${id} auth`;
+    // 3. Generar JWT con payload personalizado
+    const payload: JwtPayload = {
+      id: user.id,
+      email: user.email,
+      companyId: user.company.id, // CRÍTICO para Multi-tenancy
+    };
+
+    return {
+      user: {
+        fullName: user.fullName,
+        email: user.email,
+        roles: user.roles,
+        company: user.company.name
+      },
+      token: this.jwtService.sign(payload),
+    };
   }
 }

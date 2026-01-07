@@ -26,4 +26,5 @@ export class User extends AbstractEntity {
     @ManyToOne(() => Company, (company) => company.users)
     @JoinColumn({ name: 'company_id' })
     company: Company;
+    isActive: any;
 }
