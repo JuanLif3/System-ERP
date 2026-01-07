@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, Sse } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { OrdersModule } from './modules/orders/orders.module';
@@ -9,9 +9,40 @@ import { ExpensesModule } from './modules/expenses/expenses.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { UsersModule } from './modules/users/users.module';
 import { ProductsModule } from './modules/products/products.module';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import * as Joi from 'joi';
 
 @Module({
   imports: [
+
+    // 1. Configura cion de variables de entorno
+    ConfigModule.forRoot({
+      isGlobal: true, // Disponible para toda la app sin re-importar
+      validationSchema: Joi.object({
+        DATABASE_URL: Joi.string().required(),
+        NODE_ENV: Joi.string().valid('development', 'production').default('development'),
+      }),
+    }),
+
+    // 2. Configuracion asincrona de base de datos (TypeORM + NeonDB)
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        type: 'postgres',
+        url: configService.get<string>('DATABASE_URL'),
+        autoLoadEntities: true, // Carga automática de entidades en los módulos
+        synchronize: configService.get<string>('NODE_ENV') === 'development', // ¡CUIDADO! True solo en dev. Crea tablas automáticamente.
+        ssl: true, 
+          extra: {
+            ssl: {
+              rejectUnauthorized: false, // Necesario para algunas configuraciones de Neon/AWS
+          },
+        },
+      }),
+    }),
+
     OrdersModule,
     AuthModule,
     CategoriesModule,
