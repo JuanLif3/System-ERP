@@ -1,8 +1,16 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm'; 
 import { ProductsService } from './products.service';
-import { ProductsController } from '../products/products.controller';
+import { ProductsController } from './products.controller';
+import { Product } from './entities/product.entity'; 
+import { AuthModule } from '../auth/auth.module'; 
 
 @Module({
+  imports: [
+    // Registramos la entidad para que el servicio pueda usar el Repository
+    TypeOrmModule.forFeature([Product]), 
+    AuthModule 
+  ],
   controllers: [ProductsController],
   providers: [ProductsService],
 })

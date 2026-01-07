@@ -1,45 +1,22 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-} from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
-import { UpdateCategoryDto } from './dto/update-category.dto';
+import { Auth } from '../auth/decorators/auth.decorator';
+import { GetUser } from '../../common/decorators/get-user.decorator';
+import { User } from '../users/entities/user.entity';
 
+@Auth() // Protegido
 @Controller('categories')
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
   @Post()
-  create(@Body() createCategoryDto: CreateCategoryDto) {
-    return this.categoriesService.create(createCategoryDto);
+  create(@Body() createCategoryDto: CreateCategoryDto, @GetUser() user: User) {
+    return this.categoriesService.create(createCategoryDto, user);
   }
 
   @Get()
-  findAll() {
-    return this.categoriesService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.categoriesService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Body() updateCategoryDto: UpdateCategoryDto,
-  ) {
-    return this.categoriesService.update(+id, updateCategoryDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.categoriesService.remove(+id);
+  findAll(@GetUser() user: User) {
+    return this.categoriesService.findAll(user);
   }
 }

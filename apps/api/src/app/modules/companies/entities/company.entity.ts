@@ -2,6 +2,7 @@ import { Entity, Column } from "typeorm";
 import { AbstractEntity } from "../../../common/entities/abstract.entity";
 import { OneToMany } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
+import { Category } from '../../categories/entities/category.entity';
 
 @Entity({ name: 'companies' })
 export class Company extends AbstractEntity {
@@ -22,4 +23,8 @@ export class Company extends AbstractEntity {
 
     @OneToMany(() => User, (user) => user.company)
     users: User[];
+    products: any;
+
+    @OneToMany(() => Category, (category) => category.company)
+categories: Category[];
 }
