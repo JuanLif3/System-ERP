@@ -1,8 +1,17 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { FinanceService } from './finance.service';
 import { FinanceController } from './finance.controller';
+import { Order } from '../orders/entities/order.entity';
+import { OrderItem } from '../orders/entities/order-item.entity';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
+  imports: [
+    // Importamos las entidades que vamos a consultar
+    TypeOrmModule.forFeature([Order, OrderItem]),
+    AuthModule
+  ],
   controllers: [FinanceController],
   providers: [FinanceService],
 })
