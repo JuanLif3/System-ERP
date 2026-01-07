@@ -9,7 +9,6 @@ export class CreateCategoryDto {
   @IsOptional()
   description?: string;
 
-  @IsString()
-    @IsNotEmpty()
-    categoryId: string;
+  // ¡NO DEBE HABER NADA MÁS AQUÍ!
+  // Si ves "categoryId", "price" o "sku", BÓRRALOS INMEDIATAMENTE.
 }

@@ -36,29 +36,34 @@ export class OrdersService {
 
       // 2. Iterar sobre cada item solicitado
       for (const item of items) {
-        // Buscar producto (bloqueando lectura para consistencia, opcional)
+        // ... (Tu código de búsqueda de producto y validación sigue igual) ...
+
         const product = await queryRunner.manager.findOne(Product, {
           where: { id: item.productId, company: { id: user.company.id } },
         });
 
         if (!product) {
-          throw new NotFoundException(`Producto con ID ${item.productId} no encontrado`);
+            throw new NotFoundException(`Producto ${item.productId} no encontrado`);
         }
 
-        // Validar Stock
         if (product.stock < item.quantity) {
-          throw new BadRequestException(`Stock insuficiente para ${product.name}. Disponible: ${product.stock}`);
+             throw new BadRequestException(`Stock insuficiente. Disponible: ${product.stock}`);
         }
 
-        // Descontar Stock
-        product.stock -= item.quantity;
-        await queryRunner.manager.save(product);
+        // --- CORRECCIÓN AQUÍ ---
+        // Método A (El que tenías): Modificar objeto y guardar
+        // product.stock -= item.quantity;
+        // await queryRunner.manager.save(product); 
+        
+        // Método B (Más Robusto): Instrucción directa de decremento a la DB
+        await queryRunner.manager.decrement(Product, { id: product.id }, 'stock', item.quantity);
+        // -----------------------
 
-        // Crear el Item de la Orden
+        // Crear el Item de la Orden (Usamos el precio del producto encontrado)
         const orderItem = queryRunner.manager.create(OrderItem, {
           quantity: item.quantity,
-          price: product.price, // Tomamos el precio ACTUAL del producto
-          product: product,
+          price: product.price, 
+          product: product, // TypeORM vinculará el ID correctamente
         });
 
         // Cálculos acumulativos

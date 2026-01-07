@@ -1,51 +1,38 @@
-// Uncomment this line to use CSS modules
-// import styles from './app.module.scss';
-import NxWelcome from './nx-welcome';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { MainLayout } from './components/layout/MainLayout';
+import { LoginPage } from './modules/auth/LoginPage';
+import { DashboardPage } from './modules/finance/DashboardPage'; // <--- Importar
+import { InventoryPage } from './modules/inventory/InventoryPage';
+import { SalesPage } from './modules/sales/SalesPage';
+import { ExpensesPage } from './modules/expenses/ExpensesPage';
+import { UsersPage } from './modules/users/UsersPage';
 
-import { Route, Routes, Link } from 'react-router-dom';
+// Placeholders restantes
+const Sales = () => <h1 className="text-3xl font-bold text-slate-800">Ventas y Pedidos</h1>;
+const Inventory = () => <h1 className="text-3xl font-bold text-slate-800">Gestión de Inventario</h1>;
+const Users = () => <h1 className="text-3xl font-bold text-slate-800">Usuarios</h1>;
+const Expenses = () => <h1 className="text-3xl font-bold text-slate-800">Gastos</h1>;
 
 export function App() {
   return (
-    <div>
-      <NxWelcome title="frontend" />
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
 
-      {/* START: routes */}
-      {/* These routes and navigation have been generated for you */}
-      {/* Feel free to move and update them to fit your needs */}
-      <br />
-      <hr />
-      <br />
-      <div role="navigation">
-        <ul>
-          <li>
-            <Link to="/">Home</Link>
-          </li>
-          <li>
-            <Link to="/page-2">Page 2</Link>
-          </li>
-        </ul>
-      </div>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <div>
-              This is the generated root route.{' '}
-              <Link to="/page-2">Click here for page 2.</Link>
-            </div>
-          }
-        />
-        <Route
-          path="/page-2"
-          element={
-            <div>
-              <Link to="/">Click here to go back to root page.</Link>
-            </div>
-          }
-        />
-      </Routes>
-      {/* END: routes */}
-    </div>
+      <Route path="/" element={<MainLayout />}>
+        <Route index element={<Navigate to="/dashboard" replace />} />
+        
+        {/* Aquí usamos el componente real */}
+        <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="inventory" element={<InventoryPage />} />
+        
+        <Route path="sales" element={<SalesPage />} />
+        <Route path="inventory" element={<Inventory />} />
+        <Route path="users" element={<UsersPage />} />
+        <Route path="expenses" element={<ExpensesPage />} />
+      </Route>
+      
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
   );
 }
 

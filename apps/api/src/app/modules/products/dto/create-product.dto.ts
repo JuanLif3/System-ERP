@@ -29,6 +29,7 @@ export class CreateProductDto {
   @IsOptional()
   expiryDate?: Date;
 
-  // No pedimos companyId ni isActive aquí. 
-  // CompanyId lo sacamos del Token. isActive es true por defecto.
+  @IsString()
+  @IsNotEmpty()
+  categoryId: string;
 }
