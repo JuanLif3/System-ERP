@@ -1,5 +1,7 @@
 import { Entity, Column } from "typeorm";
 import { AbstractEntity } from "../../../common/entities/abstract.entity";
+import { OneToMany } from 'typeorm';
+import { User } from '../../users/entities/user.entity';
 
 @Entity({ name: 'companies' })
 export class Company extends AbstractEntity {
@@ -17,4 +19,7 @@ export class Company extends AbstractEntity {
 
     @Column({ type: 'boolean', default: true })
     isActive: boolean;
+
+    @OneToMany(() => User, (user) => user.company)
+    users: User[];
 }
