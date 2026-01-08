@@ -41,17 +41,18 @@ export class FinanceService {
             name: c.name || 'Sin Categoría',
             value: parseInt(c.value || '0')
         })),
-        // salesHistory: ... YA NO LO ENVIAMOS AQUÍ
       }
     };
   }
 
-  // --- NUEVO MÉTODO DINÁMICO ---
+  // --- ARREGLO 1: GRÁFICO DE HISTORIAL ---
   async getSalesHistory(companyId: string, range: string) {
     let days = 7;
-    // TRUCO: Convertimos a Chile PRIMERO, y luego extraemos el string DD/MM
-    // PostgreSQL asume que la fecha guardada es UTC, así que primero decimos "es UTC" y luego "pásalo a Santiago"
-    let groupBy = "TO_CHAR(order.createdAt AT TIME ZONE 'UTC' AT TIME ZONE 'America/Santiago', 'DD/MM')";
+    
+    // CORRECCIÓN: Eliminamos el primer "AT TIME ZONE 'UTC'".
+    // Al ser timestamptz, Postgres convierte directo a Chile.
+    // Esto hará que las ventas de las 22:00 del día 07 se queden en el 07.
+    let groupBy = "TO_CHAR(order.createdAt AT TIME ZONE 'America/Santiago', 'DD/MM')";
 
     switch (range) {
       case '30d':
@@ -62,8 +63,7 @@ export class FinanceService {
         break;
       case '1y':
         days = 365;
-        // Para anual, agrupamos por Mes/Año, también respetando Chile
-        groupBy = "TO_CHAR(order.createdAt AT TIME ZONE 'UTC' AT TIME ZONE 'America/Santiago', 'MM/YY')";
+        groupBy = "TO_CHAR(order.createdAt AT TIME ZONE 'America/Santiago', 'MM/YY')";
         break;
       default:
         days = 7;
@@ -74,17 +74,17 @@ export class FinanceService {
 
     const data = await this.orderRepository
       .createQueryBuilder('order')
-      .select(groupBy, 'date') // Usamos la conversión aquí
+      .select(groupBy, 'date')
       .addSelect('SUM(order.total)', 'total')
       .where('order.company.id = :companyId', { companyId })
       .andWhere('order.createdAt >= :startDate', { startDate })
-      .groupBy(groupBy) // Y agrupamos usando la conversión
-      // Ordenamos por la fecha "cruda" mínima del grupo
+      .groupBy(groupBy)
       .orderBy('MIN(order.createdAt)', 'ASC')
       .getRawMany();
 
     return data.map(d => ({ date: d.date, total: parseFloat(d.total) }));
   }
+
   // --- CONSULTAS SQL ---
 
   private async getGeneralStats(companyId: string) {
@@ -97,26 +97,18 @@ export class FinanceService {
       .getRawOne(); 
   }
 
+  // --- ARREGLO 2: VENTAS DE HOY ---
   private async getTodaySalesCount(companyId: string) {
-    // Definimos "HOY" según Chile
-    const now = new Date();
-    
-    // Convertimos la hora actual a string de Chile para obtener el año, mes y día correctos allá
-    const chileTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Santiago' }));
-    
-    const startOfDay = new Date(chileTime.getFullYear(), chileTime.getMonth(), chileTime.getDate(), 0, 0, 0);
-    const endOfDay = new Date(chileTime.getFullYear(), chileTime.getMonth(), chileTime.getDate(), 23, 59, 59);
-
-    // Como TypeORM comparará estas fechas JS contra la DB UTC, 
-    // necesitamos asegurarnos de que el offset se maneje bien o usar SQL crudo.
-    // La forma más segura en SQL puro para evitar lios de JS Date:
+    // ESTRATEGIA INFALIBLE:
+    // Comparamos el "Día en Chile de la Venta" vs "Día en Chile de AHORA"
+    // Usamos ::date para ignorar las horas y comparar solo la fecha (YYYY-MM-DD)
     
     return await this.orderRepository
       .createQueryBuilder('order')
       .where('order.company.id = :companyId', { companyId })
-      // Comparamos la fecha en la DB convertida a Chile contra la fecha actual de Chile
-      .andWhere("order.createdAt AT TIME ZONE 'UTC' AT TIME ZONE 'America/Santiago' >= CURRENT_DATE AT TIME ZONE 'America/Santiago'")
-      .andWhere("order.createdAt AT TIME ZONE 'UTC' AT TIME ZONE 'America/Santiago' < (CURRENT_DATE AT TIME ZONE 'America/Santiago' + INTERVAL '1 day')")
+      .andWhere(
+        "(order.createdAt AT TIME ZONE 'America/Santiago')::date = (now() AT TIME ZONE 'America/Santiago')::date"
+      )
       .getCount();
   }
 
@@ -127,7 +119,7 @@ export class FinanceService {
       .leftJoin('item.order', 'order')
       .select('product.name', 'name')
       .addSelect('SUM(item.quantity)', 'value') 
-      .addSelect('SUM(item.quantity * item.price)', 'revenue') // <--- Calculamos ganancia (cantidad * precio)
+      .addSelect('SUM(item.quantity * item.price)', 'revenue')
       .where('order.company.id = :companyId', { companyId })
       .groupBy('product.id')
       .addGroupBy('product.name')
@@ -149,25 +141,6 @@ export class FinanceService {
       .addGroupBy('category.name')
       .getRawMany();
 
-    // Fix manual para asegurar que value sea accesible aunque la DB lo devuelva raro
     return results.map(r => ({ name: r.name, value: r.value }));
-  }
-
-  // --- NUEVA CONSULTA: Gráfico de Línea (Últimos 7 días) ---
-  private async getLast7DaysSales(companyId: string) {
-    // Esta consulta agrupa las ventas por fecha (Día-Mes)
-    // Nota: SQL puro a veces es mejor para fechas, pero TypeORM lo hace así:
-    
-    const data = await this.orderRepository
-      .createQueryBuilder('order')
-      .select("TO_CHAR(order.createdAt, 'DD/MM')", 'date') // Formato día/mes (Postgres)
-      .addSelect('SUM(order.total)', 'total')
-      .where('order.company.id = :companyId', { companyId })
-      .groupBy("TO_CHAR(order.createdAt, 'DD/MM')")
-      .orderBy('MIN(order.createdAt)', 'ASC') // Ordenar cronológicamente
-      .limit(7)
-      .getRawMany();
-
-    return data.map(d => ({ date: d.date, total: parseFloat(d.total) }));
   }
 }

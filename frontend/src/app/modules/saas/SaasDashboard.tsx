@@ -1,11 +1,17 @@
 import { useState } from 'react';
 import { Building2, Save, User } from 'lucide-react';
 import { api } from '../../config/api';
+import { useNotification } from '../../context/NotificationContext'; // <--- IMPORTADO
 
 export const SaasDashboard = () => {
+  const notify = useNotification(); // <--- HOOK
   const [form, setForm] = useState({
-    companyName: '', companyRUT: '',
-    ownerFullName: '', ownerEmail: '', ownerPassword: ''
+    companyName: '', 
+    companyRUT: '',
+    companyPhone: '', 
+    ownerFullName: '', 
+    ownerEmail: '', 
+    ownerPassword: ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -14,10 +20,15 @@ export const SaasDashboard = () => {
 
     try {
       await api.post('/companies/saas/create', form);
-      alert('Pyme creada exitosamente. El dueño ya puede iniciar sesión.');
-      setForm({ companyName: '', companyRUT: '', ownerFullName: '', ownerEmail: '', ownerPassword: '' });
+      notify.success('Pyme y Usuario Admin creados exitosamente'); // <--- ÉXITO
+      
+      setForm({ 
+          companyName: '', companyRUT: '', companyPhone: '',
+          ownerFullName: '', ownerEmail: '', ownerPassword: '' 
+      });
     } catch (error) {
-      alert('Error al crear Pyme. Revisa que el correo no exista.');
+      console.error(error);
+      notify.error('Error al crear Pyme. Verifica si el correo o RUT ya existen.'); // <--- ERROR
     }
   };
 
@@ -35,16 +46,21 @@ export const SaasDashboard = () => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Datos Empresa */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Nombre Fantasía</label>
-              <input required className="w-full border p-2 rounded" placeholder="Ej: Pizzería Juan"
+              <input required className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Ej: Pizzería Juan"
                 value={form.companyName} onChange={e => setForm({...form, companyName: e.target.value})} />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">RUT / Identificador</label>
-              <input required className="w-full border p-2 rounded" placeholder="77.123.456-K"
+              <input required className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="77.123.456-K"
                 value={form.companyRUT} onChange={e => setForm({...form, companyRUT: e.target.value})} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Teléfono Empresa</label>
+              <input required className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="+569 1234 5678"
+                value={form.companyPhone} onChange={e => setForm({...form, companyPhone: e.target.value})} />
             </div>
           </div>
 
@@ -58,23 +74,23 @@ export const SaasDashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Nombre Completo</label>
-              <input required className="w-full border p-2 rounded" placeholder="Juan Pérez"
+              <input required className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Juan Pérez"
                 value={form.ownerFullName} onChange={e => setForm({...form, ownerFullName: e.target.value})} />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Correo Electrónico</label>
-              <input required type="email" className="w-full border p-2 rounded" placeholder="juan@pizzeria.cl"
+              <input required type="email" className="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="juan@pizzeria.cl"
                 value={form.ownerEmail} onChange={e => setForm({...form, ownerEmail: e.target.value})} />
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña Inicial</label>
-              <input required type="password" minLength={6} className="w-full border p-2 rounded bg-slate-50" placeholder="******"
+              <input required type="password" minLength={6} className="w-full border p-2 rounded bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="******"
                 value={form.ownerPassword} onChange={e => setForm({...form, ownerPassword: e.target.value})} />
               <p className="text-xs text-gray-400 mt-1">El cliente podrá cambiarla después.</p>
             </div>
           </div>
 
-          <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg font-bold flex justify-center items-center gap-2 transition-all">
+          <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg font-bold flex justify-center items-center gap-2 transition-all shadow-md">
             <Save size={20} /> Crear Pyme y Usuario Admin
           </button>
         </form>

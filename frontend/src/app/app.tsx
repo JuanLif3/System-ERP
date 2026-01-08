@@ -10,9 +10,13 @@ import { UsersPage } from './modules/users/UsersPage';
 import { ExpensesPage } from './modules/expenses/ExpensesPage';
 import { SaasDashboard } from './modules/saas/SaasDashboard';
 import { CompaniesPage } from './modules/saas/CompaniesPage';
+import { NotificationProvider } from './context/NotificationContext';
+import { AuthProvider } from "./modules/auth/contexts/AuthContext";
 
 export function App() {
   return (
+    <AuthProvider>
+    <NotificationProvider>
     <Routes>
       <Route path="/login" element={<LoginPage />} />
 
@@ -48,6 +52,8 @@ export function App() {
       
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
+    </NotificationProvider>
+    </AuthProvider>
   );
 }
 

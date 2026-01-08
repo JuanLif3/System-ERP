@@ -22,7 +22,7 @@ export class CompaniesService {
         rut: dto.companyRUT,
         address: 'Dirección pendiente', // Placeholder
         // --- AGREGAMOS ESTOS CAMPOS FALTANTES ---
-        phone: 'Sin teléfono',  // Valor por defecto para que la DB no reclame
+        phone: dto.companyPhone,
         email: dto.ownerEmail,  // Usamos el mismo correo del dueño para la empresa
         isActive: true
       });

@@ -9,17 +9,33 @@ module.exports = {
   ],
   theme: {
     extend: {
-      colors: {
-        // Paleta semántica para el ERP
-        primary: {
-          DEFAULT: '#2563EB', // Azul profesional (Blue-600)
-          hover: '#1D4ED8',   // Azul más oscuro para hovers (Blue-700)
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'], // Asegúrate de usar una fuente limpia
+      },
+      animation: {
+        'fade-in-up': 'fadeInUp 0.5s ease-out forwards',
+        'fade-in': 'fadeIn 0.3s ease-out forwards',
+        'slide-in': 'slideIn 0.4s ease-out forwards',
+        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+      },
+      keyframes: {
+        fadeInUp: {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
         },
-        slate: {
-          850: '#1e293b', // Fondo Sidebar oscuro
-          900: '#0f172a', // Fondo Sidebar más oscuro
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        slideIn: {
+          '0%': { transform: 'translateX(-20px)', opacity: '0' },
+          '100%': { transform: 'translateX(0)', opacity: '1' },
         }
       },
+      boxShadow: {
+        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)', // Sombra super suave
+        'glow': '0 0 15px rgba(79, 70, 229, 0.3)', // Resplandor para botones primarios
+      }
     },
   },
   plugins: [],

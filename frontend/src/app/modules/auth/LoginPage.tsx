@@ -2,8 +2,11 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, Loader2 } from 'lucide-react';
 import { api } from '../../config/api'; // Importamos nuestra instancia de Axios configurada
+import { useAuth } from './contexts/AuthContext';
 
 export const LoginPage = () => {
+
+  
   const navigate = useNavigate();
   
   // Estados para manejar el formulario y la UI
@@ -45,6 +48,27 @@ export const LoginPage = () => {
       setIsLoading(false);
     }
   };
+
+  export const LoginPage = () => {
+  const navigate = useNavigate();
+  const { login } = useAuth(); // <--- USAR HOOK
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const { data } = await api.post('/auth/login', { email, password });
+      
+      // USAR LA FUNCIÓN DEL CONTEXTO PARA GUARDAR SESIÓN GLOBAL
+      login(data.token, data.user); 
+      
+      navigate('/dashboard');
+    } catch (error) {
+      alert('Credenciales incorrectas'); // O usa notify.error si ya lo tienes aquí
+    }
+  };
+  
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">

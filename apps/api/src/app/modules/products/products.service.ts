@@ -17,20 +17,14 @@ export class ProductsService {
   ) {}
 
   async create(createProductDto: CreateProductDto, user: User) {
-    try {
-      // Validar SKU único PERO solo dentro de la misma empresa
-      // (Opcional avanzado: hacerlo con query directa, por ahora confiamos en el save)
-      
-      const product = this.productRepository.create({
-        ...createProductDto,
-        company: user.company, // <--- AQUÍ OCURRE LA MAGIA DEL MULTI-TENANT
-      });
-
-      return await this.productRepository.save(product);
-
-    } catch (error) {
-      this.handleDBErrors(error);
-    }
+    const product = this.productRepository.create({
+      ...createProductDto,
+      // Mapeo manual: Conectamos el ID que viene del formulario con la relación
+      category: { id: createProductDto.categoryId }, 
+      company: user.company,
+    });
+    
+    return await this.productRepository.save(product);
   }
 
   async findAll(user: User) {

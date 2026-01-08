@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Building2, Phone, Power, Search, AlertTriangle } from 'lucide-react';
+import { Building2, Phone, Power } from 'lucide-react';
 import { api } from '../../config/api';
+import { useNotification } from '../../context/NotificationContext'; // <--- IMPORTADO
 
 interface Company {
   id: string;
@@ -12,6 +13,7 @@ interface Company {
 }
 
 export const CompaniesPage = () => {
+  const notify = useNotification(); // <--- HOOK
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -21,6 +23,7 @@ export const CompaniesPage = () => {
       setCompanies(data);
     } catch (error) {
       console.error(error);
+      notify.error('Error al cargar lista de empresas'); // <--- ERROR
     } finally {
       setLoading(false);
     }
@@ -35,12 +38,13 @@ export const CompaniesPage = () => {
     if(!window.confirm(`¿Estás seguro de ${action} a ${company.name}? Sus usuarios no podrán ingresar.`)) return;
 
     try {
-        // Actualización optimista
         setCompanies(prev => prev.map(c => c.id === company.id ? { ...c, isActive: !c.isActive } : c));
         await api.patch(`/companies/${company.id}/status`);
+        notify.success(`Empresa ${action === 'activar' ? 'activada' : 'suspendida'} correctamente`); // <--- ÉXITO
     } catch (error) {
-        alert('Error al cambiar estado');
-        fetchCompanies(); // Revertir
+        console.error(error);
+        notify.error('Error al cambiar estado de la empresa'); // <--- ERROR
+        fetchCompanies(); // Revertir en caso de error
     }
   };
 
@@ -69,7 +73,7 @@ export const CompaniesPage = () => {
                 <tr><td colSpan={5} className="p-6 text-center">Cargando empresas...</td></tr>
             ) : (
                 companies.map((company) => (
-                <tr key={company.id} className="hover:bg-slate-50">
+                <tr key={company.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                             <div className={`p-2 rounded-lg ${company.isActive ? 'bg-indigo-50 text-indigo-600' : 'bg-red-50 text-red-600'}`}>

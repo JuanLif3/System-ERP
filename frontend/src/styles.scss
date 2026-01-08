@@ -2,4 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
-// Aquí abajo puedes poner tus estilos globales adicionales si los necesitas
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-800 antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+}
+
+@layer components {
+  /* --- INPUTS MODERNOS --- */
+  .input-modern {
+    @apply w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm 
+    bg-white transition-all duration-200
+    focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none
+    placeholder:text-slate-400 hover:border-slate-300;
+  }
+
+  /* --- BOTONES PREMIUM --- */
+  .btn-primary {
+    @apply bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-medium text-sm
+    shadow-lg shadow-indigo-600/20 transition-all duration-300
+    hover:bg-indigo-700 hover:shadow-indigo-600/40 hover:-translate-y-0.5 active:translate-y-0;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-slate-700 border border-slate-200 px-5 py-2.5 rounded-xl font-medium text-sm
+    shadow-sm transition-all duration-200
+    hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900;
+  }
+
+  /* --- TARJETAS GLASS --- */
+  .card-premium {
+    @apply bg-white rounded-2xl border border-slate-100 shadow-soft p-6 transition-all duration-300;
+  }
+  
+  .card-hover {
+    @apply hover:shadow-xl hover:shadow-slate-200/50 hover:-translate-y-1;
+  }
+}
+
+/* --- SCROLLBAR ELEGANTE (Chrome/Safari/Edge) --- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 rounded-full border-4 border-transparent bg-clip-content;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-400;
+}
