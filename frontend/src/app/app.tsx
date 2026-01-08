@@ -8,36 +8,43 @@ import { SalesPage } from './modules/sales/SalesPage';
 import { InventoryPage } from './modules/inventory/InventoryPage';
 import { UsersPage } from './modules/users/UsersPage';
 import { ExpensesPage } from './modules/expenses/ExpensesPage';
+import { SaasDashboard } from './modules/saas/SaasDashboard';
+import { CompaniesPage } from './modules/saas/CompaniesPage';
 
 export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
 
+      {/* --- INICIO DEL LAYOUT PRINCIPAL (Sidebar + Header) --- */}
       <Route path="/" element={<MainLayout />}>
-        {/* Redirección inteligente: Si entra a raíz, decide según rol (Opcional, por ahora dejamos dashboard) */}
+        
         <Route index element={<Navigate to="/dashboard" replace />} />
 
-        {/* --- ZONA PROTEGIDA: ADMIN Y MANAGER --- */}
+        {/* Rutas normales (Dashboard, Ventas, etc.) */}
         <Route element={<RoleGuard allowedRoles={['ADMIN', 'MANAGER']} />}>
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="expenses" element={<ExpensesPage />} />
         </Route>
 
-        {/* --- ZONA PROTEGIDA: ADMIN Y SELLER --- */}
         <Route element={<RoleGuard allowedRoles={['ADMIN', 'SELLER']} />}>
            <Route path="sales" element={<SalesPage />} />
         </Route>
         
-        {/* --- ZONA COMÚN: TODOS --- */}
         <Route path="inventory" element={<InventoryPage />} />
 
-        {/* --- ZONA SOLO ADMIN --- */}
         <Route element={<RoleGuard allowedRoles={['ADMIN']} />}>
           <Route path="users" element={<UsersPage />} />
         </Route>
 
+        {/* --- AQUÍ DEBE ESTAR EL SUPER ADMIN (Dentro de MainLayout) --- */}
+        <Route element={<RoleGuard allowedRoles={['SUPER_ADMIN']} />}>
+          <Route path="saas" element={<SaasDashboard />} />
+          <Route path="admin/companies" element={<CompaniesPage />} />
+        </Route>
+
       </Route>
+      {/* --- FIN DEL LAYOUT PRINCIPAL --- */}
       
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>

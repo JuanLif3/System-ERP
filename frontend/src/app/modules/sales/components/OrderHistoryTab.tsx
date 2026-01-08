@@ -63,13 +63,26 @@ export const OrderHistoryTab = () => {
 
   const formatMoney = (val: number) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(val);
   
-  // CORRECCIÓN DE HORA CHILENA
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString('es-CL', { 
-      timeZone: 'America/Santiago',
-      day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit'
-    });
+    if (!dateStr) return '-';
+
+    // TRUCO DE ARQUITECTO:
+    // Si la fecha viene "2026-01-08T00:53:21" (sin Z), el navegador cree que es hora local.
+    // Le pegamos una 'Z' al final para gritarle al navegador: "¡ESTO ES UTC!"
+    // Así, cuando la convierta a Chile, le restará las 3 o 4 horas correspondientes.
+    const rawDate = dateStr.endsWith('Z') ? dateStr : `${dateStr}Z`;
+    
+    const date = new Date(rawDate);
+
+    return new Intl.DateTimeFormat('es-CL', {
+      timeZone: 'America/Santiago', // Esto hace la conversión (UTC - 3 horas)
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).format(date);
   };
 
   if (loading) return <div className="p-8 text-center">Cargando historial...</div>;
@@ -92,14 +105,15 @@ export const OrderHistoryTab = () => {
             {orders.map((order) => (
               <tr key={order.id} className="hover:bg-slate-50 transition-colors">
                 <td className="px-6 py-4">
-                  <div className="flex flex-col">
-                    <span className="font-mono text-xs text-gray-500 mb-1">{order.id.split('-')[0]}...</span>
-                    <div className="flex items-center gap-1 text-gray-700 font-medium">
-                        <Calendar size={14} className="text-blue-500" />
-                        {formatDate(order.createdAt)}
-                    </div>
-                  </div>
-                </td>
+  <div className="flex flex-col">
+    <span className="font-mono text-xs text-gray-500 mb-1">{order.id.split('-')[0]}...</span>
+    <div className="flex items-center gap-1 text-gray-700 font-medium">
+        <Calendar size={14} className="text-blue-500" />
+        {/* Aquí se usa la función */}
+        {formatDate(order.createdAt)} 
+    </div>
+  </div>
+</td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2 text-gray-600">
                     <UserIcon size={14} />

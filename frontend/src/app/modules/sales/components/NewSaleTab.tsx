@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ShoppingCart, Plus, Minus, Trash2, Search, PackageX } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, Search, PackageX, Package } from 'lucide-react';
 import { api } from '../../../config/api';
 
 // Interfaces
@@ -9,6 +9,7 @@ interface Product {
   price: number;
   stock: number;
   sku: string;
+  isActive: boolean;
 }
 
 interface CartItem {
@@ -27,8 +28,11 @@ export const NewSaleTab = () => {
   const fetchProducts = async () => {
     try {
       const { data } = await api.get('/products');
-      // Filtramos solo los que tienen stock > 0
-      setProducts(data.filter((p: Product) => p.stock > 0));
+      
+      // AQUÍ SÍ FILTRAMOS: Solo mostramos lo que tiene Stock Y está Activo
+      const productsAvailable = data.filter((p: Product) => p.stock > 0 && p.isActive === true);
+      
+      setProducts(productsAvailable);
     } catch (error) {
       console.error(error);
     } finally {
@@ -150,28 +154,58 @@ export const NewSaleTab = () => {
                 const isOutOfStock = inCart >= product.stock;
 
                 return (
-                  <button
-                    key={product.id}
-                    onClick={() => !isOutOfStock && addToCart(product)}
-                    disabled={isOutOfStock}
-                    className={`text-left p-3 rounded-xl border transition-all hover:shadow-md flex flex-col justify-between h-24
-                      ${isOutOfStock 
-                        ? 'bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed' 
-                        : 'bg-white border-slate-200 hover:border-primary cursor-pointer'
-                      }`}
-                  >
-                    <div>
-                      <h4 className="font-semibold text-slate-800 text-sm truncate">{product.name}</h4>
-                      <p className="text-xs text-gray-500">{product.sku}</p>
-                    </div>
-                    <div className="flex justify-between items-end mt-2">
-                      <span className="font-bold text-primary">{formatMoney(product.price)}</span>
-                      <span className="text-xs bg-slate-100 px-2 py-0.5 rounded text-slate-600">
-                        Stock: {product.stock - inCart}
-                      </span>
-                    </div>
-                  </button>
-                );
+  <button
+    key={product.id}
+    onClick={() => !isOutOfStock && addToCart(product)}
+    disabled={isOutOfStock}
+    className={`group relative flex flex-col items-start text-left bg-white rounded-xl border transition-all duration-200 overflow-hidden hover:shadow-lg
+      ${isOutOfStock 
+        ? 'opacity-60 grayscale cursor-not-allowed border-slate-200' 
+        : 'border-slate-200 hover:border-primary cursor-pointer'
+      }`}
+  >
+    {/* IMAGEN DEL PRODUCTO */}
+    <div className="w-full h-32 bg-slate-100 relative overflow-hidden">
+      {(product as any).imageUrl ? (
+        <img 
+          src={(product as any).imageUrl} 
+          alt={product.name} 
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center text-slate-300">
+          <Package size={40} />
+        </div>
+      )}
+      
+      {/* Badge de Stock flotante */}
+      <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md text-white text-xs px-2 py-1 rounded-full font-medium">
+        Stock: {product.stock - inCart}
+      </div>
+    </div>
+
+    {/* INFO DEL PRODUCTO */}
+    <div className="p-3 w-full">
+      <h4 className="font-bold text-slate-800 text-sm truncate mb-1" title={product.name}>
+        {product.name}
+      </h4>
+      <p className="text-xs text-gray-500 mb-2 truncate">SKU: {product.sku}</p>
+      
+      <div className="flex justify-between items-center mt-auto">
+        <span className="text-base font-bold text-primary">
+          {formatMoney(product.price)}
+        </span>
+        
+        {/* Pequeño botón visual de + */}
+        {!isOutOfStock && (
+          <div className="w-6 h-6 rounded-full bg-blue-50 text-primary flex items-center justify-center">
+            <Plus size={14} />
+          </div>
+        )}
+      </div>
+    </div>
+  </button>
+);
               })}
             </div>
           )}

@@ -18,7 +18,7 @@ export class FinanceController {
   @Get('history')
   getHistory(
     @GetUser() user: User, 
-    @Query('range') range: string = '7d' // Valor por defecto
+    @Query('range') range = '7d' // Valor por defecto
   ) {
     return this.financeService.getSalesHistory(user.company.id, range);
   }

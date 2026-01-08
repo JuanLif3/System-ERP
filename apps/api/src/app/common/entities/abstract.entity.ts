@@ -1,12 +1,22 @@
-import { PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
 export abstract class AbstractEntity {
-  @PrimaryGeneratedColumn('uuid') // UUID es más seguro que ID numérico para SaaS
+  @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @CreateDateColumn({ type: 'timestamp', name: 'created_at' })
+  @CreateDateColumn({
+    type: 'timestamptz', // CLAVE
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamp', name: 'updated_at' })
+  @UpdateDateColumn({
+    type: 'timestamptz', // CLAVE
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   updatedAt: Date;
 }

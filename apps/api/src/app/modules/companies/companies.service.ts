@@ -1,89 +1,78 @@
-import { BadRequestException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm'; 
-import * as bcrypt from 'bcrypt'; 
-
-import { CreateCompanyDto } from './dto/create-company.dto';
+import { Injectable, BadRequestException } from '@nestjs/common';
+import { DataSource } from 'typeorm'; // <--- Importante para transacciones
 import { Company } from './entities/company.entity';
 import { User } from '../users/entities/user.entity';
+import { CreateCompanySaasDto } from './dto/create-company-saas.dto';
 import { UserRoles } from '../../common/enums/roles.enum';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class CompaniesService {
-  logger: any;
-  constructor(
-    @InjectRepository(Company)
-    private readonly companyRepository: Repository<Company>,
-    private readonly dataSource: DataSource,
-  ) {}
+  constructor(private readonly dataSource: DataSource) {}
 
-  async create(createCompanyDto: CreateCompanyDto) {
-    const { password, ...companyData } = createCompanyDto;
-
-    // 1. Iniciar QueryRunner (Transaccion)
+  async createCompanySaaS(dto: CreateCompanySaasDto) {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      // 2. Crear la pyme
-      // Usamos queryRunner.manager para que la operación
+      // 1. Crear la Empresa
       const newCompany = queryRunner.manager.create(Company, {
-        ...companyData,
-    });
-    const savedCompany = await queryRunner.manager.save(newCompany);
+        name: dto.companyName,
+        rut: dto.companyRUT,
+        address: 'Dirección pendiente', // Placeholder
+        // --- AGREGAMOS ESTOS CAMPOS FALTANTES ---
+        phone: 'Sin teléfono',  // Valor por defecto para que la DB no reclame
+        email: dto.ownerEmail,  // Usamos el mismo correo del dueño para la empresa
+        isActive: true
+      });
+      
+      const savedCompany = await queryRunner.manager.save(newCompany);
+      // 2. Crear el Usuario Dueño (Vinculado a la empresa)
+      const hashedPassword = await bcrypt.hash(dto.ownerPassword, 10);
+      
+      const newOwner = queryRunner.manager.create(User, {
+        fullName: dto.ownerFullName,
+        email: dto.ownerEmail,
+        password: hashedPassword,
+        roles: UserRoles.ADMIN, // Es Admin de SU empresa
+        company: savedCompany,  // <--- AQUÍ ESTÁ EL AISLAMIENTO
+        isActive: true
+      });
+      
+      await queryRunner.manager.save(newOwner);
 
-    // 3. Hashear la contraseña
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+      // 3. Confirmar todo
+      await queryRunner.commitTransaction();
 
-    // 4. Crear el usuario admin vinculado a la pyme
-    const adminUser = queryRunner.manager.create(User, {
-      fullName: `Admin ${companyData.name}`, // Nombre por defecto
-      email: savedCompany.email, // Usamos el email de la pyme
-      password: hashedPassword,
-      roles: UserRoles.ADMIN,
-      company: savedCompany, // <--- Vinculación clave
-    });
+      return {
+        message: 'Pyme creada exitosamente',
+        company: savedCompany,
+        owner: { email: newOwner.email, name: newOwner.fullName }
+      };
 
-    await queryRunner.manager.save(adminUser);
-    
-    // 5. Configurar transacción (Commit)
-    await queryRunner.commitTransaction();
-
-    return {
-      message: 'Pyme y usuario admin creados exitosamente',
-      company: savedCompany,
-      adminUser: {
-        id: adminUser.id,
-        email: adminUser.email,
-        fullName: adminUser.fullName,
-      },
-    };
-
-  } catch (error) {
-      // 6. En caso de error, rollback
+    } catch (error) {
       await queryRunner.rollbackTransaction();
-      this.handleDBErrors(error);
+      // Manejo básico de errores (ej: email duplicado)
+      if (error.code === '23505') throw new BadRequestException('El email o RUT ya existe');
+      throw error;
     } finally {
-      // 7. Liberar el queryRunner
       await queryRunner.release();
     }
   }
 
-  // Solo asegúrate que handleDBErrors tenga el logger si quieres logs bonitos
-  private handleDBErrors(error: any): never {
-    if (error.code === '23505') {
-      throw new BadRequestException(error.detail);
-    }
-    this.logger.error(error); // Log en servidor
-    throw new InternalServerErrorException('Please check server logs');
+  async findAll() {
+    return await this.dataSource.getRepository(Company).find({
+      order: { createdAt: 'DESC' } // Las más nuevas primero
+    });
   }
-  
-  // Agrega implementaciones vacías/simples de los otros métodos si se borraron,
-  // para que no de error de compilación
-  findAll() { return this.companyRepository.find(); }
-  findOne(id: string) { return this.companyRepository.findOneBy({ id }); }
-  update(id: string, updateDto: any) { return this.companyRepository.update(id, updateDto); }
-  remove(id: string) { return this.companyRepository.delete(id); }
+
+  // Alternar estado
+  async toggleStatus(id: string) {
+    const company = await this.dataSource.getRepository(Company).findOneBy({ id });
+    if (!company) throw new BadRequestException('Empresa no encontrada');
+    
+    company.isActive = !company.isActive;
+    return await this.dataSource.getRepository(Company).save(company);
+  }
 }

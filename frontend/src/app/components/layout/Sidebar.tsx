@@ -1,9 +1,21 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ShoppingCart, Package, Users, Wallet, LogOut } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Package, Users, Wallet, LogOut, Building2 } from 'lucide-react';
 import clsx from 'clsx';
 
 // Definimos los items con sus roles permitidos
 const menuItems = [
+  { 
+  path: '/admin/companies', 
+  label: 'Pymes', 
+  icon: Building2, 
+  roles: ['SUPER_ADMIN'] 
+},
+  { 
+    path: '/saas', 
+    label: 'Panel SaaS', 
+    icon: Building2, // Importar de lucide-react
+    roles: ['SUPER_ADMIN'] 
+  },
   { 
     path: '/dashboard', 
     label: 'Finanzas', 

@@ -1,10 +1,11 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { CreateProductDto } from './dto/create-product.dto';
 import { Product } from './entities/product.entity';
 import { User } from '../users/entities/user.entity';
+import { UpdateProductDto } from './dto/update-product.dto';
 
 @Injectable()
 export class ProductsService {
@@ -33,13 +34,14 @@ export class ProductsService {
   }
 
   async findAll(user: User) {
-    // Solo devolvemos los productos de la empresa del usuario
     return this.productRepository.find({
-      where: {
-        company: { id: user.company.id }, // <--- FILTRO AUTOMÁTICO
-        isActive: true, // Por defecto mostramos solo los activos en el listado general
+      where: { 
+        company: { id: user.company.id } 
+        // ¡IMPORTANTE! No pongas "isActive: true" aquí.
+        // Queremos ver TODOS los productos en el inventario.
       },
-      order: { createdAt: 'DESC' }
+      relations: ['category'], // Para que se vea el nombre de la categoría
+      order: { name: 'ASC' },   // Ordenar alfabéticamente por defecto
     });
   }
 
@@ -48,4 +50,31 @@ export class ProductsService {
     this.logger.error(error);
     throw new BadRequestException('Error gestionando productos (Revisar logs)');
   }
+
+  async update(id: string, updateProductDto: UpdateProductDto, user: User) {
+    // 1. Buscamos el producto asegurando que pertenezca a la empresa del usuario
+    const product = await this.productRepository.findOne({ 
+        where: { id, company: { id: user.company.id } } 
+    });
+
+    if (!product) {
+        throw new NotFoundException(`Producto con ID ${id} no encontrado`);
+    }
+
+    // 2. Separamos categoryId si viene en la petición
+    const { categoryId, ...data } = updateProductDto;
+
+    // 3. Fusionamos los datos simples (name, price, isActive, etc.)
+    this.productRepository.merge(product, data);
+
+    // 4. Si intentan cambiar la categoría, actualizamos la relación manualmente
+    if (categoryId) {
+        product.category = { id: categoryId } as any;
+    }
+
+    // 5. Guardamos
+    return await this.productRepository.save(product);
+  }
+
+  
 }

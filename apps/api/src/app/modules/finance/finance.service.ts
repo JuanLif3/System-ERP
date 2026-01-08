@@ -49,9 +49,10 @@ export class FinanceService {
   // --- NUEVO MÉTODO DINÁMICO ---
   async getSalesHistory(companyId: string, range: string) {
     let days = 7;
-    let groupBy = "TO_CHAR(order.createdAt, 'DD/MM')"; // Por defecto: Día/Mes
+    // TRUCO: Convertimos a Chile PRIMERO, y luego extraemos el string DD/MM
+    // PostgreSQL asume que la fecha guardada es UTC, así que primero decimos "es UTC" y luego "pásalo a Santiago"
+    let groupBy = "TO_CHAR(order.createdAt AT TIME ZONE 'UTC' AT TIME ZONE 'America/Santiago', 'DD/MM')";
 
-    // Lógica de Rangos
     switch (range) {
       case '30d':
         days = 30;
@@ -61,29 +62,29 @@ export class FinanceService {
         break;
       case '1y':
         days = 365;
-        groupBy = "TO_CHAR(order.createdAt, 'MM/YY')"; // Mes/Año para anual
+        // Para anual, agrupamos por Mes/Año, también respetando Chile
+        groupBy = "TO_CHAR(order.createdAt AT TIME ZONE 'UTC' AT TIME ZONE 'America/Santiago', 'MM/YY')";
         break;
       default:
         days = 7;
     }
 
-    // Calculamos la fecha de inicio
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
     const data = await this.orderRepository
       .createQueryBuilder('order')
-      .select(groupBy, 'date')
+      .select(groupBy, 'date') // Usamos la conversión aquí
       .addSelect('SUM(order.total)', 'total')
       .where('order.company.id = :companyId', { companyId })
-      .andWhere('order.createdAt >= :startDate', { startDate }) // Filtro de fecha
-      .groupBy(groupBy)
+      .andWhere('order.createdAt >= :startDate', { startDate })
+      .groupBy(groupBy) // Y agrupamos usando la conversión
+      // Ordenamos por la fecha "cruda" mínima del grupo
       .orderBy('MIN(order.createdAt)', 'ASC')
       .getRawMany();
 
     return data.map(d => ({ date: d.date, total: parseFloat(d.total) }));
   }
-
   // --- CONSULTAS SQL ---
 
   private async getGeneralStats(companyId: string) {
@@ -97,19 +98,25 @@ export class FinanceService {
   }
 
   private async getTodaySalesCount(companyId: string) {
-    // Ajuste Zona Horaria CHILE (UTC-3 o UTC-4)
-    // Para simplificar, usamos el objeto Date nativo que tomará la hora del servidor
-    // Si quieres forzar Chile, definimos el inicio del día manualmente.
-    
+    // Definimos "HOY" según Chile
     const now = new Date();
-    // Creamos una fecha que representa las 00:00 de hoy
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    
+    // Convertimos la hora actual a string de Chile para obtener el año, mes y día correctos allá
+    const chileTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Santiago' }));
+    
+    const startOfDay = new Date(chileTime.getFullYear(), chileTime.getMonth(), chileTime.getDate(), 0, 0, 0);
+    const endOfDay = new Date(chileTime.getFullYear(), chileTime.getMonth(), chileTime.getDate(), 23, 59, 59);
 
+    // Como TypeORM comparará estas fechas JS contra la DB UTC, 
+    // necesitamos asegurarnos de que el offset se maneje bien o usar SQL crudo.
+    // La forma más segura en SQL puro para evitar lios de JS Date:
+    
     return await this.orderRepository
       .createQueryBuilder('order')
       .where('order.company.id = :companyId', { companyId })
-      .andWhere('order.createdAt BETWEEN :start AND :end', { start: startOfDay, end: endOfDay })
+      // Comparamos la fecha en la DB convertida a Chile contra la fecha actual de Chile
+      .andWhere("order.createdAt AT TIME ZONE 'UTC' AT TIME ZONE 'America/Santiago' >= CURRENT_DATE AT TIME ZONE 'America/Santiago'")
+      .andWhere("order.createdAt AT TIME ZONE 'UTC' AT TIME ZONE 'America/Santiago' < (CURRENT_DATE AT TIME ZONE 'America/Santiago' + INTERVAL '1 day')")
       .getCount();
   }
 

@@ -11,7 +11,9 @@ import { UsersModule } from './modules/users/users.module';
 import { ProductsModule } from './modules/products/products.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import * as Joi from 'joi';
+import { join } from 'path';
 
 @Module({
   imports: [
@@ -42,6 +44,11 @@ import * as Joi from 'joi';
         },
       }),
     }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', '..', 'uploads'), // Carpeta fuera del 'dist'
+      serveRoot: '/uploads', // La URL será: localhost:3000/uploads/archivo.jpg
+    }),
+    
 
     OrdersModule,
     AuthModule,

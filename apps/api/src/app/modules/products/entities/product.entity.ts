@@ -39,4 +39,5 @@ export class Product extends AbstractEntity {
   // eager: true hace que cuando busques un producto, traiga automáticamente la categoría
   @JoinColumn({ name: 'category_id' })
   category: Category;
+  
 }
