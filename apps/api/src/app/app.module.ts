@@ -45,8 +45,10 @@ import { join } from 'path';
       }),
     }),
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', '..', 'uploads'), // Carpeta fuera del 'dist'
-      serveRoot: '/uploads', // La URL será: localhost:3000/uploads/archivo.jpg
+      // Usamos process.cwd() para asegurar que busque en la raíz del proyecto (donde creaste la carpeta)
+      // y no en la carpeta 'dist' compilada.
+      rootPath: join(process.cwd(), 'uploads'), 
+      serveRoot: '/uploads',
     }),
     
 

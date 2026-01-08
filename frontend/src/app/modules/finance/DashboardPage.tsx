@@ -1,28 +1,82 @@
 import { useEffect, useState } from 'react';
 import { 
   DollarSign, ShoppingBag, CreditCard, TrendingUp, 
-  ArrowUpRight, ArrowDownRight, Calendar 
+  ArrowUpRight, ArrowDownRight, Calendar, RefreshCcw 
 } from 'lucide-react';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  AreaChart, Area 
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
 import { api } from '../../config/api';
 
-// ... (Interfaces siguen igual)
+// --- INTERFACES ---
+interface DashboardCardData {
+  totalRevenue: number;
+  totalSales: number;
+  averageTicket: number;
+  todaySales: number;
+}
+
+interface ChartData {
+  name: string;
+  value: number;
+  revenue: number;
+}
+
+interface SalesHistoryData {
+  date: string;
+  total: number;
+}
+
+interface DashboardData {
+  cards: DashboardCardData;
+  charts: {
+    topProducts: ChartData[];
+    categoriesSales: ChartData[];
+    salesHistory?: SalesHistoryData[]; // Opcional por si el backend no lo envía
+  };
+}
 
 export const DashboardPage = () => {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // ... (fetchDashboardData sigue igual)
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Agregamos un timestamp para evitar caché del navegador
+      const { data } = await api.get(`/finance/dashboard?t=${new Date().getTime()}`);
+      setData(data);
+    } catch (err: any) {
+      console.error("Error cargando dashboard:", err);
+      setError("No se pudieron cargar las métricas. Intenta recargar.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  // --- ESTADO DE CARGA ---
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="flex flex-col items-center gap-4">
         <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-        <p className="text-indigo-600 font-medium animate-pulse">Cargando métricas...</p>
+        <p className="text-indigo-600 font-medium animate-pulse">Cargando métricas en tiempo real...</p>
       </div>
+    </div>
+  );
+
+  // --- ESTADO DE ERROR ---
+  if (error) return (
+    <div className="flex flex-col items-center justify-center h-96 gap-4">
+      <p className="text-red-500 font-medium">{error}</p>
+      <button onClick={fetchDashboardData} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+        <RefreshCcw size={18} /> Reintentar
+      </button>
     </div>
   );
 
@@ -48,29 +102,28 @@ export const DashboardPage = () => {
           title="Ingresos Totales" 
           value={formatMoney(data.cards.totalRevenue)} 
           icon={DollarSign} 
-          trend="+12.5%" 
+          trend="+0%" 
           color="indigo"
         />
         <KPICard 
           title="Ventas Totales" 
           value={data.cards.totalSales.toString()} 
           icon={ShoppingBag} 
-          trend="+4.3%" 
+          trend="Historico" 
           color="blue"
         />
         <KPICard 
           title="Ticket Promedio" 
           value={formatMoney(data.cards.averageTicket)} 
           icon={CreditCard} 
-          trend="-2.1%" 
+          trend="Promedio" 
           color="emerald"
-          trendNegative
         />
         <KPICard 
           title="Ventas Hoy" 
           value={data.cards.todaySales.toString()} 
           icon={TrendingUp} 
-          trend="En tiempo real" 
+          trend="Hoy" 
           color="violet"
         />
       </div>
@@ -78,18 +131,14 @@ export const DashboardPage = () => {
       {/* GRÁFICOS PRINCIPALES */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* GRÁFICO GRANDE (2/3) */}
+        {/* GRÁFICO DE HISTORIAL */}
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-soft hover:shadow-lg transition-shadow duration-300">
           <div className="flex justify-between items-center mb-6">
             <h3 className="font-bold text-lg text-slate-800">Tendencia de Ingresos</h3>
-            <select className="bg-slate-50 border-none text-sm font-medium text-slate-600 rounded-lg p-2 outline-none focus:ring-2 focus:ring-indigo-100 cursor-pointer">
-              <option>Últimos 7 días</option>
-              <option>Últimos 30 días</option>
-            </select>
           </div>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data.charts.salesHistory}>
+              <AreaChart data={data.charts.salesHistory || []}>
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.2}/>
@@ -101,7 +150,7 @@ export const DashboardPage = () => {
                 <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748B', fontSize: 12}} tickFormatter={(value) => `$${value/1000}k`} />
                 <Tooltip 
                   contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)'}}
-                  formatter={(value: number) => [formatMoney(value), 'Ingresos']}
+                  formatter={(value: number | undefined) => [formatMoney(value || 0), 'Ingresos']}
                 />
                 <Area type="monotone" dataKey="total" stroke="#4F46E5" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
               </AreaChart>
@@ -109,49 +158,40 @@ export const DashboardPage = () => {
           </div>
         </div>
 
-        {/* TOP PRODUCTOS (1/3) */}
+        {/* TOP PRODUCTOS */}
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-soft hover:shadow-lg transition-shadow duration-300 flex flex-col">
           <h3 className="font-bold text-lg text-slate-800 mb-6">Top Productos</h3>
           <div className="flex-1 space-y-5 overflow-y-auto pr-2 custom-scrollbar">
-            {data.charts.topProducts.map((product, index) => (
-              <div key={index} className="flex items-center gap-4 group cursor-default">
-                <div className={`
-                  w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 transition-colors
-                  ${index === 0 ? 'bg-yellow-100 text-yellow-700' : 
-                    index === 1 ? 'bg-slate-100 text-slate-700' : 
-                    index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-slate-50 text-slate-500'}
-                `}>
-                  #{index + 1}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-slate-800 text-sm truncate group-hover:text-indigo-600 transition-colors">
-                    {product.name}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-indigo-500 rounded-full" 
-                        style={{ width: `${(product.revenue / data.charts.topProducts[0].revenue) * 100}%` }} 
-                      />
+            {data.charts.topProducts.length === 0 ? (
+                <p className="text-slate-400 text-sm text-center mt-10">No hay ventas registradas aún.</p>
+            ) : (
+                data.charts.topProducts.map((product, index) => (
+                <div key={index} className="flex items-center gap-4 group cursor-default">
+                    <div className={`
+                    w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 transition-colors
+                    ${index === 0 ? 'bg-yellow-100 text-yellow-700' : 
+                        index === 1 ? 'bg-slate-100 text-slate-700' : 
+                        index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-slate-50 text-slate-500'}
+                    `}>
+                    #{index + 1}
                     </div>
-                    <span className="text-xs text-slate-400 font-medium">{product.value} u.</span>
-                  </div>
+                    <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-slate-800 text-sm truncate group-hover:text-indigo-600 transition-colors">
+                        {product.name}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-slate-400 font-medium">{product.value} u.</span>
+                    </div>
+                    </div>
+                    <div className="text-right">
+                    <p className="font-bold text-slate-800 text-sm">{formatMoney(product.revenue)}</p>
+                    </div>
                 </div>
-                <div className="text-right">
-                   <p className="font-bold text-slate-800 text-sm">{formatMoney(product.revenue)}</p>
-                </div>
-              </div>
-            ))}
+                ))
+            )}
           </div>
         </div>
-
       </div>
-      
-      {/* SECCIÓN INFERIOR (Ej: Ventas por Categoría) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-         {/* Puedes agregar aquí el gráfico de torta de categorías con el mismo estilo de tarjeta */}
-      </div>
-
     </div>
   );
 };

@@ -11,7 +11,7 @@ import { ExpensesPage } from './modules/expenses/ExpensesPage';
 import { SaasDashboard } from './modules/saas/SaasDashboard';
 import { CompaniesPage } from './modules/saas/CompaniesPage';
 import { NotificationProvider } from './context/NotificationContext';
-import { AuthProvider } from "./modules/auth/contexts/AuthContext";
+import { AuthProvider } from './modules/auth/context/AuthContext';
 
 export function App() {
   return (
