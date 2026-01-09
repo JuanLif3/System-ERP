@@ -28,6 +28,7 @@ interface DashboardCardData {
   totalSales: number;
   averageTicket: number;
   todaySales: number;
+  revenueTrend: number;
 }
 interface ChartData {
   name: string;
@@ -181,7 +182,7 @@ export const DashboardPage = () => {
 
       {/* TARJETAS KPI */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <KPICard title="Ingresos Totales" value={formatMoney(data.cards.totalRevenue)} icon={DollarSign} trend="+0%" color="indigo" />
+        <KPICard title="Ingresos Totales" value={formatMoney(data.cards.totalRevenue)} icon={DollarSign} trend={data.cards.revenueTrend} color="indigo" />
         <KPICard title="Ventas Totales" value={data.cards.totalSales.toString()} icon={ShoppingBag} trend="Historico" color="blue" />
         <KPICard title="Ticket Promedio" value={formatMoney(data.cards.averageTicket)} icon={CreditCard} trend="Promedio" color="emerald" />
         <KPICard title="Ventas Hoy" value={data.cards.todaySales.toString()} icon={TrendingUp} trend="Hoy" color="violet" />
@@ -340,7 +341,7 @@ const CustomPieTooltip = ({ active, payload }: any) => {
     return null;
 };
 
-const KPICard = ({ title, value, icon: Icon, trend, color, trendNegative }: any) => {
+const KPICard = ({ title, value, icon: Icon, trend, color, isPercentage }: any) => {
   const colorClasses: any = {
     indigo: 'bg-indigo-50 text-indigo-600',
     blue: 'bg-blue-50 text-blue-600',
@@ -348,20 +349,40 @@ const KPICard = ({ title, value, icon: Icon, trend, color, trendNegative }: any)
     violet: 'bg-violet-50 text-violet-600',
   };
 
+  // Lógica para detectar si el trend es número (del backend) o texto estático
+  let trendValue = trend;
+  let isPositive = true;
+  let isNeutral = false;
+
+  if (typeof trend === 'number') {
+      isPositive = trend >= 0;
+      isNeutral = trend === 0;
+      trendValue = `${isPositive ? '+' : ''}${trend}%`;
+  } else {
+      // Para los casos estáticos como "Historico" o "Promedio"
+      isNeutral = true;
+  }
+
   return (
     <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-soft hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
       <div className="flex justify-between items-start mb-4">
         <div className={`p-3 rounded-xl ${colorClasses[color]} group-hover:scale-110 transition-transform duration-300`}>
           <Icon size={24} strokeWidth={2.5} />
         </div>
-        <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${trendNegative ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
-          {trendNegative ? <ArrowDownRight size={14} /> : <ArrowUpRight size={14} />}
-          {trend}
+        
+        {/* BADGE DE TENDENCIA DINÁMICO */}
+        <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full 
+            ${isNeutral ? 'bg-slate-50 text-slate-500' : 
+              isPositive ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
+            }`}>
+          
+          {!isNeutral && (isPositive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />)}
+          {trendValue}
         </div>
       </div>
       <div>
         <p className="text-slate-500 text-sm font-medium mb-1">{title}</p>
-        <h3 className="text-2xl font-bold text-slate-800 tracking-tight">{value}</h3>
+        <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{value}</h3>
       </div>
     </div>
   );

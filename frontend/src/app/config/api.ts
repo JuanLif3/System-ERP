@@ -2,7 +2,8 @@ import axios from 'axios';
 
 // URL base del backend
 export const api = axios.create({
-  baseURL: 'http://localhost:3000/api',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+  withCredentials: true,
 });
 
 // Interceptor de Request: "Antes de salir, ponte el carnet"

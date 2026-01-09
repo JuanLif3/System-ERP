@@ -23,14 +23,24 @@ export class FinanceService {
   async getDashboardData(user: User, range = '7d') {
     const companyId = user.company.id;
 
-    const [generalStats, todaySales, topProducts, categoriesSales, salesHistory, lowStock, expiring] = await Promise.all([
+    const [
+        generalStats, 
+        todaySales, 
+        topProducts, 
+        categoriesSales, 
+        salesHistory, 
+        lowStock, 
+        expiring,
+        revenueTrend // <--- NUEVA VARIABLE
+    ] = await Promise.all([
       this.getGeneralStats(companyId),
       this.getTodaySalesCount(companyId),
       this.getTopSellingProducts(companyId),
       this.getSalesByCategory(companyId),
-      this.getSalesHistory(companyId, range), // <--- USAMOS LA VARIABLE AQUÍ
+      this.getSalesHistory(companyId, range),
       this.getLowStockProducts(companyId),
-      this.getExpiringProducts(companyId)
+      this.getExpiringProducts(companyId),
+      this.calculateRevenueGrowth(companyId, range) // <--- LLAMADA NUEVA
     ]);
 
     const stats = generalStats || { totalRevenue: '0', totalSales: '0', averageTicket: '0' };
@@ -41,6 +51,7 @@ export class FinanceService {
         totalSales: parseInt(stats.totalSales || '0'),
         averageTicket: parseFloat(stats.averageTicket || '0'),
         todaySales: todaySales || 0,
+        revenueTrend: revenueTrend || 0 // <--- SE ENVÍA AL FRONT
       },
       charts: {
         topProducts: topProducts.map(p => ({
@@ -62,6 +73,65 @@ export class FinanceService {
     };
   }
 
+  // ... imports
+
+  // Reemplaza el método calculateRevenueGrowth con esta versión mejorada:
+  private async calculateRevenueGrowth(companyId: string, range: string): Promise<number> {
+    let days = 7;
+    switch (range) {
+        case '30d': days = 30; break;
+        case '3m': days = 90; break;
+        case '1y': days = 365; break;
+        default: days = 7;
+    }
+
+    // FECHAS BASE (Seteadas a las 00:00:00 para comparación estricta de días)
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // Final de hoy
+
+    // Inicio del periodo actual (Hace X días a las 00:00)
+    const currentStart = new Date();
+    currentStart.setDate(currentStart.getDate() - days);
+    currentStart.setHours(0, 0, 0, 0);
+
+    // Inicio del periodo anterior (Hace 2*X días a las 00:00)
+    const previousStart = new Date();
+    previousStart.setDate(previousStart.getDate() - (days * 2));
+    previousStart.setHours(0, 0, 0, 0);
+    
+    // Fin del periodo anterior (Justo antes de que empiece el actual)
+    const previousEnd = new Date(currentStart); 
+    previousEnd.setMilliseconds(-1); 
+
+    // 1. Consulta Ingresos Periodo Actual
+    const currentRevenueResult = await this.orderRepository.createQueryBuilder('o')
+        .select('SUM(o.total)', 'total')
+        .where('o.company.id = :companyId', { companyId })
+        .andWhere('o.createdAt BETWEEN :currentStart AND :today', { currentStart, today })
+        .getRawOne();
+    
+    // 2. Consulta Ingresos Periodo Anterior
+    const previousRevenueResult = await this.orderRepository.createQueryBuilder('o')
+        .select('SUM(o.total)', 'total')
+        .where('o.company.id = :companyId', { companyId })
+        .andWhere('o.createdAt BETWEEN :previousStart AND :previousEnd', { previousStart, previousEnd })
+        .getRawOne();
+
+    const currentRevenue = parseFloat(currentRevenueResult.total || '0');
+    const previousRevenue = parseFloat(previousRevenueResult.total || '0');
+
+    // 3. Lógica para sistemas nuevos
+    if (previousRevenue === 0) {
+        // Si no hubo ventas antes, y ahora sí, es 100%. 
+        // Si tampoco hay ventas ahora, es 0%.
+        return currentRevenue > 0 ? 100 : 0; 
+    }
+
+    // Fórmula de Crecimiento
+    const growth = ((currentRevenue - previousRevenue) / previousRevenue) * 100;
+    
+    return parseFloat(growth.toFixed(1));
+  }
   // --- CONSULTAS ---
 
   private async getGeneralStats(companyId: string) {
