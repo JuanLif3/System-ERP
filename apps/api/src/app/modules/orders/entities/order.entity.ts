@@ -16,12 +16,11 @@ export class Order extends AbstractEntity {
   @Column('float')
   total: number; // La suma de todos los items
 
-  @Column({
-    type: 'enum',
-    enum: OrderStatus,
-    default: OrderStatus.COMPLETED, // Por ahora asumimos venta directa
-  })
-  status: OrderStatus;
+  @Column({ default: 'PENDING' }) // PENDING, COMPLETED, CANCELLED
+  status: string;
+
+  @Column({ nullable: true }) 
+  paymentMethod: string; // 'CASH', 'CARD', 'TRANSFER'
 
   // Vendedor que hizo la venta
   @ManyToOne(() => User)

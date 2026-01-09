@@ -8,32 +8,36 @@ export const InventoryPage = () => {
   const [activeTab, setActiveTab] = useState<'products' | 'categories'>('products');
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6"> {/* Agregado p-6 para consistencia de espaciado */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Inventario</h1>
-          <p className="text-gray-500 text-sm">Gestiona tus productos y categorías</p>
+          <h1 className="text-2xl font-bold text-slate-900">Inventario</h1>
+          <p className="text-slate-500 text-sm">Gestiona tus productos y categorías</p>
         </div>
         
         {/* Selector de Pestañas */}
-        <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm self-start">
+        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 self-start">
           <button
             onClick={() => setActiveTab('products')}
             className={clsx(
-              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-              activeTab === 'products' ? "bg-primary text-white shadow-sm" : "text-gray-600 hover:bg-gray-50"
+              "flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-300",
+              activeTab === 'products' 
+                ? "bg-white text-indigo-600 shadow-sm border border-slate-100" // Activo: Blanco con texto Indigo
+                : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50" // Inactivo: Gris
             )}
           >
-            <Package size={16} /> Productos
+            <Package size={18} /> Productos
           </button>
           <button
             onClick={() => setActiveTab('categories')}
             className={clsx(
-              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-              activeTab === 'categories' ? "bg-primary text-white shadow-sm" : "text-gray-600 hover:bg-gray-50"
+              "flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-300",
+              activeTab === 'categories' 
+                ? "bg-white text-indigo-600 shadow-sm border border-slate-100" 
+                : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
             )}
           >
-            <Tags size={16} /> Categorías
+            <Tags size={18} /> Categorías
           </button>
         </div>
       </div>

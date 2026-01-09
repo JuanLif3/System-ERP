@@ -6,10 +6,11 @@ import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { AuthModule } from '../auth/auth.module';
 import { Product } from '../products/entities/product.entity';
+import { OrderDeletionRequest } from './entities/order-deletion-request.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order, OrderItem, Product]), 
+    TypeOrmModule.forFeature([Order, OrderItem, Product, OrderDeletionRequest]), 
     AuthModule
   ],
   controllers: [OrdersController],

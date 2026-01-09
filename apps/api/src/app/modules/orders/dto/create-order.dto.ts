@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsArray, IsNotEmpty, IsNumber, IsUUID, Min, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsArray, IsNotEmpty, IsNumber, IsString, IsUUID, Min, ValidateNested } from 'class-validator';
+import { string } from 'joi';
 
 // DTO Auxiliar para cada item de la lista
 class CreateOrderItemDto {
@@ -10,6 +11,7 @@ class CreateOrderItemDto {
   @IsNumber()
   @Min(1)
   quantity: number;
+
 }
 
 // DTO Principal
@@ -19,4 +21,9 @@ export class CreateOrderDto {
   @ValidateNested({ each: true }) // Valida cada objeto dentro del array
   @Type(() => CreateOrderItemDto) // Transforma el JSON a la clase auxiliar
   items: CreateOrderItemDto[];
+
+
+  @IsString()
+  @IsNotEmpty()
+  paymentMethod: string;
 }

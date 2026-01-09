@@ -8,7 +8,7 @@ export const SalesPage = () => {
   const [activeTab, setActiveTab] = useState<'pos' | 'history'>('pos');
 
   return (
-    <div className="space-y-4">
+    <div className="p-6 space-y-4"> {/* AGREGADO p-6 AQUÍ */}
       {/* Header Compacto */}
       <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
         <div>

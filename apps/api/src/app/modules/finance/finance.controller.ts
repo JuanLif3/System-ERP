@@ -4,6 +4,7 @@ import { Auth } from '../auth/decorators/auth.decorator';
 import { GetUser } from '../../common/decorators/get-user.decorator';
 import { User } from '../users/entities/user.entity';
 
+
 @Auth()
 @Controller('finance')
 export class FinanceController {

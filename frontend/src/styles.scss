@@ -41,7 +41,7 @@
   }
 }
 
-/* --- SCROLLBAR ELEGANTE (Chrome/Safari/Edge) --- */
+/* --- SCROLLBAR ELEGANTE --- */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -54,4 +54,16 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-slate-400;
+}
+
+/* --- UTILIDAD: OCULTAR FLECHAS DE NUMEROS (NO-SPINNER) --- */
+.no-spinner::-webkit-outer-spin-button,
+.no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+.no-spinner {
+  -moz-appearance: textfield;
 }

@@ -1,139 +1,154 @@
-import { BadRequestException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
-
-import { CreateOrderDto } from './dto/create-order.dto';
+import { Repository, DataSource } from 'typeorm'; // <--- IMPORTANTE: DataSource
 import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { Product } from '../products/entities/product.entity';
 import { User } from '../users/entities/user.entity';
-import { OrderStatus } from './entities/order.entity';
+import { CreateOrderDto } from './dto/create-order.dto';
+import { OrderDeletionRequest } from './entities/order-deletion-request.entity';
 
 @Injectable()
 export class OrdersService {
-  private readonly logger = new Logger('OrdersService');
+  private readonly logger = new Logger('OrdersService'); // <--- LOGGER DEFINIDO
 
   constructor(
-    @InjectRepository(Order)
-    private readonly orderRepository: Repository<Order>,
-    @InjectRepository(Product)
-    private readonly productRepository: Repository<Product>,
-    private readonly dataSource: DataSource,
+    @InjectRepository(Order) private readonly orderRepository: Repository<Order>,
+    @InjectRepository(OrderItem) private readonly orderItemRepository: Repository<OrderItem>,
+    @InjectRepository(Product) private readonly productRepository: Repository<Product>,
+    @InjectRepository(OrderDeletionRequest) private readonly requestRepository: Repository<OrderDeletionRequest>,
+    private readonly dataSource: DataSource, // <--- INYECCIÓN DE DATASOURCE
   ) {}
 
   async create(createOrderDto: CreateOrderDto, user: User) {
-    const { items } = createOrderDto;
-
-    // 1. Iniciar Transacción
+    const { items, paymentMethod } = createOrderDto;
     const queryRunner = this.dataSource.createQueryRunner();
+
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
       let totalAmount = 0;
-      let totalItems = 0;
       const orderItems: OrderItem[] = [];
 
-      // 2. Iterar sobre cada item solicitado
-      for (const item of items) {
-        // ... (Tu código de búsqueda de producto y validación sigue igual) ...
-
-        const product = await queryRunner.manager.findOne(Product, {
-          where: { id: item.productId, company: { id: user.company.id } },
+      for (const itemDto of items) {
+        const product = await queryRunner.manager.findOne(Product, { 
+            where: { id: itemDto.productId, company: { id: user.company.id } } 
         });
 
-        if (!product) {
-            throw new NotFoundException(`Producto ${item.productId} no encontrado`);
-        }
+        if (!product) throw new NotFoundException(`Producto ${itemDto.productId} no encontrado`);
+        if (product.stock < itemDto.quantity) throw new BadRequestException(`Stock insuficiente para ${product.name}`);
 
-        if (product.stock < item.quantity) {
-             throw new BadRequestException(`Stock insuficiente. Disponible: ${product.stock}`);
-        }
+        // Descontar Stock
+        product.stock -= itemDto.quantity;
+        await queryRunner.manager.save(product);
 
-        // --- CORRECCIÓN AQUÍ ---
-        // Método A (El que tenías): Modificar objeto y guardar
-        // product.stock -= item.quantity;
-        // await queryRunner.manager.save(product); 
+        const orderItem = new OrderItem();
+        orderItem.product = product;
+        orderItem.quantity = itemDto.quantity;
+        orderItem.price = product.price;
         
-        // Método B (Más Robusto): Instrucción directa de decremento a la DB
-        await queryRunner.manager.decrement(Product, { id: product.id }, 'stock', item.quantity);
-        // -----------------------
-
-        // Crear el Item de la Orden (Usamos el precio del producto encontrado)
-        const orderItem = queryRunner.manager.create(OrderItem, {
-          quantity: item.quantity,
-          price: product.price, 
-          product: product, // TypeORM vinculará el ID correctamente
-        });
-
-        // Cálculos acumulativos
-        totalAmount += product.price * item.quantity;
-        totalItems += item.quantity;
         orderItems.push(orderItem);
+        totalAmount += product.price * itemDto.quantity;
       }
 
-      // 3. Crear la Cabecera de la Orden
-      const order = queryRunner.manager.create(Order, {
-        total: totalAmount,
-        totalItems: totalItems,
-        status: OrderStatus.COMPLETED,
-        user: user,
+      const order = this.orderRepository.create({
         company: user.company,
-        items: orderItems, // TypeORM se encarga de guardar esto gracias a cascade: true
+        user: user,
+        total: totalAmount,
+        status: 'COMPLETED',
+        paymentMethod: paymentMethod,
+        items: orderItems,
       });
 
-      // 4. Guardar todo
-      await queryRunner.manager.save(order);
-
-      // 5. Commit
+      const savedOrder = await queryRunner.manager.save(order);
       await queryRunner.commitTransaction();
-
-      // Retornar la orden limpia (sin datos sensibles de usuario)
-      return {
-        id: order.id,
-        total: order.total,
-        items: order.items.length,
-        status: order.status,
-        createdAt: order.createdAt
-      };
+      
+      return savedOrder;
 
     } catch (error) {
-      // 6. Rollback si algo falla
       await queryRunner.rollbackTransaction();
-      this.handleDBErrors(error);
+      this.logger.error(error);
+      throw error;
     } finally {
       await queryRunner.release();
     }
   }
 
   async findAll(user: User) {
-    return this.orderRepository.find({
+    return await this.orderRepository.find({
       where: { company: { id: user.company.id } },
-      relations: ['items', 'items.product', 'user'], // Traer detalles
+      relations: ['items', 'items.product', 'user'],
       order: { createdAt: 'DESC' },
     });
   }
 
-  private handleDBErrors(error: any): never {
-    if (error instanceof NotFoundException || error instanceof BadRequestException) {
-        throw error; // Re-lanzar errores controlados
-    }
-    this.logger.error(error);
-    throw new InternalServerErrorException('Error al procesar la orden');
+  // --- SOLICITUDES DE ELIMINACIÓN ---
+
+  async requestDeletion(orderId: string, reason: string, user: User) {
+    const order = await this.orderRepository.findOne({ where: { id: orderId }, relations: ['company'] });
+    if (!order) throw new NotFoundException('Orden no encontrada');
+
+    // Verificar si ya existe una solicitud pendiente
+    const existing = await this.requestRepository.findOne({ 
+        where: { order: { id: orderId }, status: 'PENDING' } 
+    });
+    // Si ya existe, no hacemos nada o devolvemos la existente
+    if (existing) return existing;
+
+    const request = this.requestRepository.create({
+        reason,
+        status: 'PENDING',
+        order,
+        requestedBy: user,
+        company: user.company
+    });
+
+    return await this.requestRepository.save(request);
   }
 
-  async remove(id: string, user: User) {
-    // 1. Verificar Permisos (Solo ADMIN puede anular)
-    if (user.roles !== 'ADMIN') {
-      throw new BadRequestException('Solo los administradores pueden anular ventas');
+  async getPendingRequests(user: User) {
+    return await this.requestRepository.find({
+        where: { 
+            company: { id: user.company.id },
+            status: 'PENDING'
+        },
+        relations: ['order', 'requestedBy'],
+        order: { createdAt: 'DESC' }
+    });
+  }
+
+  async resolveRequest(requestId: string, action: 'APPROVE' | 'REJECT') {
+    const request = await this.requestRepository.findOne({ 
+        where: { id: requestId },
+        relations: ['order', 'order.company'] 
+    });
+
+    if (!request) throw new NotFoundException('Solicitud no encontrada');
+
+    if (action === 'REJECT') {
+        request.status = 'REJECTED';
+        return await this.requestRepository.save(request);
     }
 
+    if (action === 'APPROVE') {
+        // Llamamos al método remove pasando el ID de la orden y un usuario "ficticio" o null
+        // ya que la validación de seguridad ya se hizo al cargar la solicitud
+        // Sin embargo, para reutilizar remove necesitamos el contexto.
+        // Mejor ejecutamos la lógica de borrado aquí directamente.
+        
+        await this.remove(request.order.id, { company: request.order.company } as User);
+        return { message: 'Orden eliminada y stock restaurado' };
+    }
+  }
+
+  // --- ELIMINAR ORDEN (Restaurando Stock) ---
+  async remove(id: string, user: User) {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      // 2. Buscar la orden con sus items para saber qué devolver
       const order = await queryRunner.manager.findOne(Order, {
         where: { id, company: { id: user.company.id } },
         relations: ['items', 'items.product'],
@@ -141,26 +156,21 @@ export class OrdersService {
 
       if (!order) throw new NotFoundException('Orden no encontrada');
 
-      // 3. Devolver Stock (Reversa)
+      // Restaurar Stock
       for (const item of order.items) {
-        // Incrementamos el stock del producto
-        await queryRunner.manager.increment(
-            Product, 
-            { id: item.product.id }, 
-            'stock', 
-            item.quantity
-        );
+        if (item.product) {
+            await queryRunner.manager.increment(Product, { id: item.product.id }, 'stock', item.quantity);
+        }
       }
 
-      // 4. Eliminar la Orden (Cascade borrará los items)
       await queryRunner.manager.remove(order);
-
       await queryRunner.commitTransaction();
-      return { message: 'Venta anulada y stock restaurado' };
+      return { message: 'Venta eliminada correctamente' };
 
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      throw error;
+      this.logger.error(error);
+      throw new InternalServerErrorException('Error al eliminar la venta');
     } finally {
       await queryRunner.release();
     }

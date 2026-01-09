@@ -57,7 +57,7 @@ export const ExpensesPage = () => {
   const formatDate = (date: string) => new Date(date).toLocaleDateString('es-CL');
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6"> {/* AGREGADO p-6 AQUÍ */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Gastos Operativos</h1>

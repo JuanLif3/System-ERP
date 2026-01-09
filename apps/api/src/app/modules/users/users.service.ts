@@ -1,11 +1,12 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import * as bcrypt from 'bcrypt'; // <--- Importar bcrypt
+import { Repository, Not } from 'typeorm';
+import * as bcrypt from 'bcrypt';
 
 import { CreateUserDto } from './dto/create-user.dto';
 import { User } from './entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UserRoles } from '../../common/enums/roles.enum'; // <--- IMPORTANTE: Importar el Enum
 
 @Injectable()
 export class UsersService {
@@ -14,42 +15,104 @@ export class UsersService {
     private readonly userRepository: Repository<User>,
   ) {}
 
-  async create(createUserDto: CreateUserDto, currentUserCompanyId: string) { // Recibimos el companyId del admin
+  // --- CREAR USUARIO (Normal) ---
+  async create(createUserDto: CreateUserDto, currentUser: User) {
     const { password, ...userData } = createUserDto;
 
-    // Verificar si el email ya existe
     const existing = await this.userRepository.findOneBy({ email: userData.email });
     if (existing) throw new BadRequestException('El correo ya está registrado');
 
-    // Hashear password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = this.userRepository.create({
       ...userData,
       password: hashedPassword,
-      company: { id: currentUserCompanyId }, // Asignar a la misma empresa del admin
+      // Asignamos la empresa del admin creador
+      company: currentUser.company, 
     });
 
-    return await this.userRepository.save(user);
+    const savedUser = await this.userRepository.save(user);
+    delete savedUser.password;
+    return savedUser;
   }
 
-  async findAll(companyId: string) {
+  // --- LISTAR USUARIOS (Filtrado por empresa y ocultando al admin actual) ---
+  async findAll(currentUser: User) {
+    if (!currentUser.company) {
+        // Si es SuperAdmin (sin empresa), ve todos los usuarios
+        return this.userRepository.find({ order: { fullName: 'ASC' } });
+    }
+
     return this.userRepository.find({
-      where: { company: { id: companyId } },
+      where: { 
+        company: { id: currentUser.company.id },
+        id: Not(currentUser.id) // Excluye al usuario que hace la petición
+      },
       order: { fullName: 'ASC' },
     });
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
+  // --- BUSCAR UNO ---
+  async findOne(id: string) {
+    const user = await this.userRepository.findOneBy({ id });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+    return user;
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
+  // --- ACTUALIZAR USUARIO ---
+  async update(id: string, updateUserDto: UpdateUserDto, currentUser: User) {
+    // Verificamos que el usuario pertenezca a la misma empresa (si el admin tiene empresa)
+    const query: any = { id };
+    if (currentUser.company) {
+        query.company = { id: currentUser.company.id };
+    }
+
+    const user = await this.userRepository.findOne({ where: query });
+
+    if (!user) throw new NotFoundException('Usuario no encontrado o no tienes permisos');
+
+    // Si viene password, la encriptamos
+    if (updateUserDto.password) {
+        updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10);
+    }
+
+    const updatedUser = this.userRepository.merge(user, updateUserDto);
+    await this.userRepository.save(updatedUser);
+    
+    delete updatedUser.password;
+    return updatedUser;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+  // --- MÉTODO DE EMERGENCIA PARA CREAR SUPER ADMIN ---
+  async createSuperAdminSeed() {
+    const email = 'superadmin@nexus.cl'; 
+    const password = 'AdminQS123.';      
+    const fullName = 'Nexus Super Admin';
+
+    const existing = await this.userRepository.findOneBy({ email });
+    
+    if (existing) {
+        // Restaurar acceso si ya existe
+        existing.password = await bcrypt.hash(password, 10);
+        existing.roles = UserRoles.SUPER_ADMIN; // <--- USO CORRECTO DEL ENUM
+        existing.isActive = true;
+        existing.company = null; 
+        await this.userRepository.save(existing);
+        return `Usuario ${email} RESTAURADO. Nueva pass: ${password}`;
+    }
+
+    // Crear nuevo
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = this.userRepository.create({
+      fullName,
+      email,
+      password: hashedPassword,
+      roles: UserRoles.SUPER_ADMIN, // <--- USO CORRECTO DEL ENUM
+      isActive: true,
+      company: null, 
+    });
+
+    await this.userRepository.save(user);
+    return `Usuario Super Admin creado exitosamente: ${email} / ${password}`;
   }
 }

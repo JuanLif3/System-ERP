@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Tags, Plus, Edit, Trash2, X } from 'lucide-react';
 import { api } from '../../../config/api';
-import { useNotification } from '../../../context/NotificationContext'; // <--- IMPORTADO
+import { useNotification } from '../../../context/NotificationContext';
 
 interface Category {
   id: string;
@@ -10,7 +10,7 @@ interface Category {
 }
 
 export const CategoriesTab = () => {
-  const notify = useNotification(); // <--- HOOK
+  const notify = useNotification();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -51,16 +51,16 @@ export const CategoriesTab = () => {
     try {
       if (editingCategory) {
         await api.patch(`/categories/${editingCategory.id}`, form);
-        notify.success('Categoría actualizada correctamente'); // <--- ÉXITO
+        notify.success('Categoría actualizada correctamente');
       } else {
         await api.post('/categories', form);
-        notify.success('Categoría creada correctamente'); // <--- ÉXITO
+        notify.success('Categoría creada correctamente');
       }
       setShowModal(false);
       fetchCategories();
     } catch (error) {
       console.error(error);
-      notify.error('Error al guardar la categoría'); // <--- ERROR
+      notify.error('Error al guardar la categoría');
     }
   };
 
@@ -68,18 +68,19 @@ export const CategoriesTab = () => {
     if (!window.confirm('¿Eliminar esta categoría? Si tiene productos, no se podrá eliminar.')) return;
     try {
       await api.delete(`/categories/${id}`);
-      notify.success('Categoría eliminada'); // <--- ÉXITO
+      notify.success('Categoría eliminada');
       fetchCategories();
     } catch (error) {
       console.error(error);
-      notify.error('No se pudo eliminar. Verifique que no tenga productos asociados.'); // <--- ERROR
+      notify.error('No se pudo eliminar. Verifique que no tenga productos asociados.');
     }
   };
 
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-         <button onClick={openCreate} className="bg-primary text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium hover:bg-blue-700 transition-colors shadow-lg shadow-blue-900/20">
+         {/* BOTÓN NUEVA CATEGORÍA - COLOR INDIGO */}
+         <button onClick={openCreate} className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/20 hover:-translate-y-0.5">
            <Plus size={20} /> Nueva Categoría
          </button>
       </div>
@@ -97,8 +98,8 @@ export const CategoriesTab = () => {
                         <h4 className="font-bold text-slate-800">{c.name}</h4>
                     </div>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => openEdit(c)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md"><Edit size={16}/></button>
-                        <button onClick={() => handleDelete(c.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-md"><Trash2 size={16}/></button>
+                        <button onClick={() => openEdit(c)} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"><Edit size={16}/></button>
+                        <button onClick={() => handleDelete(c.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"><Trash2 size={16}/></button>
                     </div>
                 </div>
                 <p className="text-sm text-gray-500 ml-11">{c.description || 'Sin descripción'}</p>
@@ -116,17 +117,18 @@ export const CategoriesTab = () => {
                 <form onSubmit={handleSave} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                        <input required className="w-full border rounded-lg p-2 outline-none focus:ring-2 focus:ring-primary/20" 
+                        <input required className="w-full border rounded-lg p-2 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
                             value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-                        <textarea className="w-full border rounded-lg p-2 outline-none focus:ring-2 focus:ring-primary/20 resize-none h-24" 
+                        <textarea className="w-full border rounded-lg p-2 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-none h-24" 
                             value={form.description} onChange={e => setForm({...form, description: e.target.value})} />
                     </div>
                     <div className="flex justify-end gap-3 mt-4 pt-4 border-t">
-                        <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm">Cancelar</button>
-                        <button type="submit" className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 text-sm">Guardar</button>
+                        {/* BOTONES MODAL COLOR INDIGO */}
+                        <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm font-medium transition-colors">Cancelar</button>
+                        <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium shadow-lg shadow-indigo-600/30 transition-all hover:-translate-y-0.5">Guardar</button>
                     </div>
                 </form>
             </div>

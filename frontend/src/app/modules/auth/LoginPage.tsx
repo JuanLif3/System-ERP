@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Lock, Mail, ArrowRight } from 'lucide-react'; // Iconos bonitos
+import { Building2, Lock, Mail, ArrowRight } from 'lucide-react';
 import { api } from '../../config/api';
 import { useAuth } from './context/AuthContext';
 
@@ -13,17 +13,25 @@ export const LoginPage = () => {
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault(); // Detiene la recarga del navegador
     setLoading(true);
     setError('');
 
     try {
       const { data } = await api.post('/auth/login', { email, password });
       
-      // Guardar sesión en el contexto
+      // 1. Guardar sesión
       login(data.token, data.user);
       
-      navigate('/dashboard');
+      // 2. REDIRECCIÓN INTELIGENTE POR ROL
+      // Si es Super Admin, va a su panel de gestión de Pymes.
+      // Si es usuario normal, va al dashboard de su empresa.
+      if (data.user.roles === 'SUPER_ADMIN' || data.user.roles.includes('SUPER_ADMIN')) {
+        navigate('/saas');
+      } else {
+        navigate('/dashboard');
+      }
+
     } catch (err: any) {
       console.error(err);
       setError(err.response?.data?.message || 'Credenciales incorrectas');
@@ -36,7 +44,6 @@ export const LoginPage = () => {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden flex flex-col md:flex-row">
         
-        {/* Lado del Formulario */}
         <div className="p-8 w-full">
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 mb-4">
@@ -60,7 +67,7 @@ export const LoginPage = () => {
                 <input 
                   type="email" 
                   required
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all text-sm"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all text-sm input-modern"
                   placeholder="ejemplo@empresa.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -75,7 +82,7 @@ export const LoginPage = () => {
                 <input 
                   type="password" 
                   required
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all text-sm"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all text-sm input-modern"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -86,7 +93,7 @@ export const LoginPage = () => {
             <button 
               type="submit" 
               disabled={loading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 mt-2 shadow-lg shadow-indigo-600/20 disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 mt-2 shadow-lg shadow-indigo-600/20 disabled:opacity-70 disabled:cursor-not-allowed hover:-translate-y-0.5"
             >
               {loading ? 'Ingresando...' : 'Iniciar Sesión'}
               {!loading && <ArrowRight size={18} />}

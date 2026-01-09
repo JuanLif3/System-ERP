@@ -1,12 +1,12 @@
-import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, UseGuards, Patch } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { Auth } from '../auth/decorators/auth.decorator';
+import { AuthGuard } from '@nestjs/passport';
 import { GetUser } from '../../common/decorators/get-user.decorator';
 import { User } from '../users/entities/user.entity';
 
-@Auth()
 @Controller('orders')
+@UseGuards(AuthGuard('jwt'))
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
@@ -20,8 +20,40 @@ export class OrdersController {
     return this.ordersService.findAll(user);
   }
 
+  // --- SOLICITUDES ---
+  
+  @Post(':id/request-delete')
+  requestDeletion(
+    @Param('id') id: string,
+    @Body('reason') reason: string,
+    @GetUser() user: User
+  ) {
+    return this.ordersService.requestDeletion(id, reason, user);
+  }
+
+  @Get('requests/pending')
+  getPendingRequests(@GetUser() user: User) {
+    return this.ordersService.getPendingRequests(user);
+  }
+
+  // --- CORRECCIÓN AQUÍ ---
+  // Antes estaba: @Body('action') body... return ... body.action
+  // Ahora tomamos el valor directo:
+  @Patch('requests/:id/resolve')
+  resolveRequest(
+    @Param('id') id: string,
+    @Body('action') action: 'APPROVE' | 'REJECT' 
+  ) {
+    // Pasamos 'action' directamente porque @Body('action') ya extrajo el valor (ej: "APPROVE")
+    return this.ordersService.resolveRequest(id, action);
+  }
+
+  // --- BORRADO DIRECTO ---
   @Delete(':id')
-  remove(@Param('id') id: string, @GetUser() user: User) {
+  remove(
+    @Param('id') id: string, 
+    @GetUser() user: User
+  ) {
     return this.ordersService.remove(id, user);
   }
 }

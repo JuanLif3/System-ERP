@@ -6,7 +6,6 @@ import { Repository } from 'typeorm';
 
 import { User } from '../users/entities/user.entity';
 import { LoginDto } from './dto/login.dto'; 
-import { JwtPayload } from './interfaces/jwt-payload.interface';
 
 @Injectable()
 export class AuthService {
@@ -19,38 +18,38 @@ export class AuthService {
   async login(loginDto: LoginDto) { 
     const { email, password } = loginDto;
 
-    // 1. Buscamos usuario con su empresa cargada
+    // 1. Buscamos usuario (quitamos el 'select' para evitar errores de mapeo con relaciones)
     const user = await this.userRepository.findOne({
       where: { email },
-      select: { password: true, email: true, id: true, fullName: true, roles: true, isActive: true },
-      relations: ['company'], // <--- IMPORTANTE: Cargar la relación para validar SaaS
+      relations: ['company'], 
     });
 
     if (!user) 
       throw new UnauthorizedException('Credenciales no válidas (email)');
 
-    if (!bcrypt.compareSync(password, user.password))
-      throw new UnauthorizedException('Credenciales no válidas (password)');
-
     // 2. Verificar si el USUARIO está activo
     if (!user.isActive)
         throw new UnauthorizedException('Usuario inactivo, contacte al admin');
 
-    // 3. --- VERIFICACIÓN DE SEGURIDAD SAAS ---
-    // Si la empresa existe y está inactiva, bloqueamos el acceso
+    // 3. Verificar Password (BCRYPT)
+    // NOTA: Si tu usuario en la BD tiene contraseña texto plano ("123456"), esto fallará.
+    // Debes actualizar la contraseña en la BD o crear un usuario nuevo con el sistema ya parcheado.
+    if (!bcrypt.compareSync(password, user.password))
+      throw new UnauthorizedException('Credenciales no válidas (password)');
+
+    // 4. Verificar Empresa (Solo si el usuario pertenece a una)
     if (user.company && !user.company.isActive) {
         throw new UnauthorizedException('Su empresa ha sido suspendida. Contacte al soporte.');
     }
 
-    // 4. PREPARAR EL PAYLOAD (Esto faltaba en el código anterior)
+    // 5. Preparar Payload
     const payload = { 
         id: user.id, 
         email: user.email,
         roles: user.roles,
-        companyId: user.company?.id // El SuperAdmin podría no tener company, usamos ?.
+        companyId: user.company?.id // Puede ser undefined si es Super Admin
     };
 
-    // 5. Retornar token y datos
     return {
       user: {
         email: user.email,
@@ -58,7 +57,7 @@ export class AuthService {
         roles: user.roles,
         company: user.company?.name
       },
-      token: this.jwtService.sign(payload), // <--- Ahora 'payload' ya existe
+      token: this.jwtService.sign(payload),
     };
   }
 }
