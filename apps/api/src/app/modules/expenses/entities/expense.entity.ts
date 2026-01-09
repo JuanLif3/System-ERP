@@ -1,26 +1,27 @@
-import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
-import { AbstractEntity } from '../../../common/entities/abstract.entity';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne } from 'typeorm';
 import { Company } from '../../companies/entities/company.entity';
 import { User } from '../../users/entities/user.entity';
 
 @Entity('expenses')
-export class Expense extends AbstractEntity {
-  @Column('float')
-  amount: number;
+export class Expense {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-  @Column('text')
+  @Column()
   description: string;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  date: Date; // Fecha del gasto real
+  @Column('decimal', { precision: 10, scale: 2 })
+  amount: number;
 
-  // Relación Multi-tenant
+  @Column({ type: 'timestamp' }) // Fecha del gasto
+  date: Date;
+
   @ManyToOne(() => Company)
-  @JoinColumn({ name: 'company_id' })
   company: Company;
 
-  // Quién registró el gasto (Auditoría)
-  @ManyToOne(() => User)
-  @JoinColumn({ name: 'user_id' })
+  @ManyToOne(() => User, { nullable: true }) // Quién lo registró
   user: User;
+
+  @CreateDateColumn()
+  createdAt: Date;
 }

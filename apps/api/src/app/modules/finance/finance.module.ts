@@ -6,11 +6,11 @@ import { Order } from '../orders/entities/order.entity';
 import { OrderItem } from '../orders/entities/order-item.entity';
 import { AuthModule } from '../auth/auth.module';
 import { Product } from '../products/entities/product.entity';
-
+import { Expense } from '../expenses/entities/expense.entity';
 @Module({
   imports: [
     // Importamos las entidades que vamos a consultar
-    TypeOrmModule.forFeature([Order, OrderItem, Product]),
+    TypeOrmModule.forFeature([Order, OrderItem, Product, Expense]),
     AuthModule
   ],
   controllers: [FinanceController],

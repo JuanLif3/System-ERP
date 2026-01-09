@@ -23,4 +23,12 @@ export class FinanceController {
   ) {
     return this.financeService.getSalesHistory(user.company.id, range);
   }
+  @Get('report')
+  getReport(
+    @GetUser() user: User,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string
+  ) {
+    return this.financeService.getReportData(user.company.id, startDate, endDate);
+  }
 }

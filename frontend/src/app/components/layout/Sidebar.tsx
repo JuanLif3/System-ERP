@@ -1,11 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, ShoppingCart, Package, Users, 
-  Receipt, BarChart3, LogOut, Building2, Store 
+  Receipt, BarChart3, LogOut, Building2, Store, FileText // <--- Importamos FileText
 } from 'lucide-react';
 import { useAuth } from '../../modules/auth/context/AuthContext';
-
-// 1. DEFINICIÓN DEL MENÚ (Esto faltaba)
+// 1. DEFINICIÓN DEL MENÚ CENTRALIZADA
 const MENU_ITEMS = [
   { 
     path: '/dashboard', 
@@ -23,13 +22,20 @@ const MENU_ITEMS = [
     path: '/inventory', 
     label: 'Inventario', 
     icon: Package, 
-    roles: ['ADMIN', 'MANAGER', 'SELLER'] // Visible para todos los de la pyme
+    roles: ['ADMIN', 'MANAGER', 'SELLER'] 
   },
   { 
     path: '/expenses', 
     label: 'Gastos', 
     icon: Receipt, 
     roles: ['ADMIN', 'MANAGER'] 
+  },
+  // --- AQUI AGREGAMOS REPORTES (Integrado) ---
+  { 
+    path: '/reports', 
+    label: 'Reportes', 
+    icon: FileText, 
+    roles: ['ADMIN', 'MANAGER'] // Solo admins y managers ven esto
   },
   { 
     path: '/users', 
@@ -57,10 +63,11 @@ export const Sidebar = () => {
   const { user, logout } = useAuth();
 
   // 2. FILTRADO POR ROL
-  // Si el usuario no tiene rol (no cargó aun), mostramos lista vacía para no romper la UI
   const filteredMenu = MENU_ITEMS.filter(item => {
     if (!user?.roles) return false;
-    // Si el item no tiene roles definidos, es público. Si tiene, verificamos si el rol del usuario está incluido.
+    // Verifica si el rol del usuario está permitido para este item
+    // Nota: Asumimos que user.roles es un string (ej: 'ADMIN'). 
+    // Si fuera un array, usaríamos user.roles.some(r => item.roles.includes(r))
     return item.roles.includes(user.roles);
   });
 
@@ -87,7 +94,6 @@ export const Sidebar = () => {
       <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar">
         <p className="px-4 text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Menu Principal</p>
         
-        {/* Usamos filteredMenu en lugar de menuItems */}
         {filteredMenu.map((item) => {
           const isActive = pathname.startsWith(item.path);
           const Icon = item.icon;

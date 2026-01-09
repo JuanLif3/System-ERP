@@ -5,6 +5,7 @@ import { Order } from '../orders/entities/order.entity';
 import { OrderItem } from '../orders/entities/order-item.entity';
 import { Product } from '../products/entities/product.entity';
 import { User } from '../users/entities/user.entity';
+import { Expense } from '../expenses/entities/expense.entity';
 
 @Injectable()
 export class FinanceService {
@@ -15,6 +16,7 @@ export class FinanceService {
     private readonly orderItemRepository: Repository<OrderItem>,
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+    @InjectRepository(Expense) private readonly expenseRepository: Repository<Expense>,
   ) {}
 
   // AHORA ACEPTA EL ARGUMENTO RANGE
@@ -161,5 +163,113 @@ export class FinanceService {
       order: { expiryDate: 'ASC' },
       take: 5
     });
+  }
+
+  // --- REPORTE PDF MASTER ---
+  async getReportData(companyId: string, startDate: string, endDate: string) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    // 1. Resumen General (Ingresos, Ventas, Ticket Promedio)
+    const stats = await this.orderRepository.createQueryBuilder('o')
+      .select('SUM(o.total)', 'totalRevenue')
+      .addSelect('COUNT(o.id)', 'totalSales')
+      .addSelect('AVG(o.total)', 'averageTicket')
+      .where('o.company.id = :companyId', { companyId })
+      .andWhere('o.createdAt BETWEEN :start AND :end', { start, end })
+      .getRawOne();
+
+    // 2. Top Categoría
+    const topCategory = await this.orderItemRepository.createQueryBuilder('item')
+      .leftJoin('item.product', 'p')
+      .leftJoin('p.category', 'c')
+      .leftJoin('item.order', 'o')
+      .select('c.name', 'name')
+      .addSelect('SUM(item.quantity)', 'units')
+      .where('o.company.id = :companyId', { companyId })
+      .andWhere('o.createdAt BETWEEN :start AND :end', { start, end })
+      .groupBy('c.id')
+      .addGroupBy('c.name')
+      .orderBy('SUM(item.quantity)', 'DESC')
+      .limit(1)
+      .getRawOne();
+
+    // 3. Top 5 Productos
+    const topProducts = await this.orderItemRepository.createQueryBuilder('item')
+      .leftJoin('item.product', 'p')
+      .leftJoin('item.order', 'o')
+      .select('p.name', 'name')
+      .addSelect('SUM(item.quantity)', 'quantity')
+      .where('o.company.id = :companyId', { companyId })
+      .andWhere('o.createdAt BETWEEN :start AND :end', { start, end })
+      .groupBy('p.id')
+      .addGroupBy('p.name')
+      .orderBy('SUM(item.quantity)', 'DESC')
+      .limit(5)
+      .getRawMany();
+
+    // 4. Mejor Vendedor
+    const topUser = await this.orderRepository.createQueryBuilder('o')
+      .leftJoin('o.user', 'u')
+      .select('u.fullName', 'name')
+      .addSelect('COUNT(o.id)', 'salesCount')
+      .addSelect('SUM(o.total)', 'totalGenerated')
+      .where('o.company.id = :companyId', { companyId })
+      .andWhere('o.createdAt BETWEEN :start AND :end', { start, end })
+      .groupBy('u.id')
+      .addGroupBy('u.fullName')
+      .orderBy('SUM(o.total)', 'DESC')
+      .limit(1)
+      .getRawOne();
+
+    // 5. Historial Detallado de Ventas
+    const salesLog = await this.orderRepository.find({
+      where: { 
+        company: { id: companyId },
+        createdAt: Between(start, end)
+      },
+      relations: ['items', 'items.product'],
+      order: { createdAt: 'DESC' }
+    });
+
+    // 6. Gastos (Simulado: Si tienes la entidad Expense, usa su repositorio aquí)
+    // const expenses = await this.expenseRepository.find(...)
+    const expenses = await this.expenseRepository.find({
+        where: { 
+            company: { id: companyId },
+            date: Between(start, end) 
+        },
+        relations: ['user'], // Para mostrar "Registrado por"
+        order: { date: 'DESC' }
+    }); 
+
+    const totalExpenses = expenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
+
+    return {
+      stats: {
+        totalRevenue: parseFloat(stats.totalRevenue || '0'),
+        totalSales: parseInt(stats.totalSales || '0'),
+        averageTicket: parseFloat(stats.averageTicket || '0'),
+      },
+      topCategory: topCategory ? { name: topCategory.name, units: parseInt(topCategory.units) } : null,
+      topProducts: topProducts.map(p => ({ name: p.name, quantity: parseInt(p.quantity) })),
+      topUser: topUser ? { name: topUser.name, total: parseFloat(topUser.totalGenerated) } : null,
+      salesLog: salesLog.map(s => ({
+        id: s.id,
+        date: s.createdAt,
+        total: s.total,
+        itemsCount: s.items.length
+      })),
+      expenses: expenses.map(e => ({
+          description: e.description,
+          date: e.date,
+          amount: e.amount,
+          user: e.user?.fullName || 'Sistema'
+      })),
+      totalExpenses
+    };
   }
 }

@@ -12,12 +12,14 @@ import { SaasDashboard } from './modules/saas/SaasDashboard';
 import { CompaniesPage } from './modules/saas/CompaniesPage';
 import { NotificationProvider } from './context/NotificationContext';
 import { AuthProvider } from './modules/auth/context/AuthContext';
+import { ReportsPage } from './modules/reports/ReportsPage';
 
 export function App() {
   return (
     <AuthProvider>
     <NotificationProvider>
     <Routes>
+      
       <Route path="/login" element={<LoginPage />} />
 
       {/* --- INICIO DEL LAYOUT PRINCIPAL (Sidebar + Header) --- */}
@@ -46,6 +48,8 @@ export function App() {
           <Route path="saas" element={<SaasDashboard />} />
           <Route path="admin/companies" element={<CompaniesPage />} />
         </Route>
+
+        <Route path="/reports" element={<ReportsPage />} />
 
       </Route>
       {/* --- FIN DEL LAYOUT PRINCIPAL --- */}

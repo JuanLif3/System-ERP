@@ -1,4 +1,4 @@
-import { IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, IsDateString, IsOptional } from 'class-validator';
 
 export class CreateExpenseDto {
   @IsString()
@@ -6,10 +6,10 @@ export class CreateExpenseDto {
   description: string;
 
   @IsNumber()
-  @Min(0)
+  @IsNotEmpty()
   amount: number;
 
-  @IsDateString() // Permite enviar "2026-01-08" si el gasto fue ayer
-  @IsOptional()
-  date?: Date;
+  @IsDateString()
+  @IsNotEmpty()
+  date: string; // Fecha del gasto (ej: cuando se pagó la factura)
 }
