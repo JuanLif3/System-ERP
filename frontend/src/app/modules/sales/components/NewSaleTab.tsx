@@ -14,6 +14,24 @@ interface Product {
 }
 interface CartItem extends Product { quantity: number; }
 
+// --- SOLUCIÓN 1: Helper para construir la URL correcta de la imagen ---
+const getImageUrl = (imagePath?: string) => {
+  if (!imagePath) return undefined;
+  
+  // Si ya viene con http/https (ej: Cloudinary, S3), la dejamos igual
+  if (imagePath.startsWith('http')) return imagePath;
+
+  // Si es ruta relativa, le pegamos la URL del Backend
+  // IMPORTANTE: Asegúrate de que import.meta.env.VITE_API_URL esté definido en tu .env de producción
+  // Si no, pon aquí la url de tu backend a mano temporalmente
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'; 
+  
+  // Quitamos la barra inicial si existe para evitar dobles //
+  const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
+  
+  return `${API_URL}/${cleanPath}`;
+};
+
 export const NewSaleTab = () => {
   const notify = useNotification();
   const [products, setProducts] = useState<Product[]>([]);
@@ -122,14 +140,26 @@ export const NewSaleTab = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4 pb-20 lg:pb-0"> 
               {filteredProducts.map(product => (
                 <div key={product.id} onClick={() => addToCart(product)} className={`group bg-white rounded-xl border border-slate-100 shadow-sm transition-all cursor-pointer relative overflow-hidden flex flex-col active:scale-95 duration-150 ${product.stock === 0 ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:border-indigo-300 hover:shadow-md'}`}>
-                  {/* Imagen */}
+                  {/* Imagen (SOLUCIÓN 1 APLICADA AQUÍ) */}
                   <div className="w-full aspect-square bg-slate-100 relative overflow-hidden">
                       {product.imageUrl ? (
-                        <img src={product.imageUrl} className="w-full h-full object-cover transition-transform duration-500 lg:group-hover:scale-110" alt={product.name} />
+                        <img 
+                            src={getImageUrl(product.imageUrl)} // <--- Usamos el helper
+                            className="w-full h-full object-cover transition-transform duration-500 lg:group-hover:scale-110" 
+                            alt={product.name} 
+                            onError={(e) => {
+                                // Fallback si la imagen falla al cargar
+                                (e.target as HTMLImageElement).style.display = 'none';
+                                (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                            }}
+                        />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-slate-300"><ImageOff size={32} /></div>
                       )}
                       
+                      {/* Fallback visual por si la imagen da error aunque tenga URL */}
+                      <div className="hidden w-full h-full absolute inset-0 flex items-center justify-center text-slate-300 bg-slate-100"><ImageOff size={32} /></div>
+
                       <div className="absolute top-2 left-2">
                         <span className={`text-[10px] font-bold px-2 py-1 rounded-full shadow-sm backdrop-blur-md ${product.stock < 5 ? 'bg-red-500/90 text-white' : 'bg-white/90 text-slate-700'}`}>
                           {product.stock}
@@ -160,8 +190,9 @@ export const NewSaleTab = () => {
         </div>
       </div>
 
-      {/* SECCIÓN DERECHA: CARRITO */}
-      <div className="w-full lg:w-96 flex flex-col bg-white rounded-2xl shadow-soft border border-slate-200 lg:h-full order-1 lg:order-2 shrink-0 max-h-[40vh] lg:max-h-none">
+      {/* SECCIÓN DERECHA: CARRITO (SOLUCIÓN 2 APLICADA) */}
+      {/* CAMBIO: max-h-[25vh] en móvil para que sea pequeño y deje espacio a los productos */}
+      <div className="w-full lg:w-96 flex flex-col bg-white rounded-2xl shadow-soft border border-slate-200 lg:h-full order-1 lg:order-2 shrink-0 max-h-[35vh] lg:max-h-none">
         <div className="p-3 lg:p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center shrink-0">
             <h3 className="font-bold text-slate-800 flex items-center gap-2 text-sm lg:text-base">
               <ShoppingCart size={20} className="text-indigo-600"/> 
@@ -173,14 +204,15 @@ export const NewSaleTab = () => {
 
         <div className="flex-1 overflow-y-auto p-3 lg:p-4 space-y-2 lg:space-y-3 custom-scrollbar min-h-0">
           {cart.length === 0 ? (
-            <div className="h-20 lg:h-full flex flex-col items-center justify-center text-slate-400 space-y-2">
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-2 min-h-[80px]">
                 <p className="text-sm font-medium">Carrito vacío</p>
             </div>
           ) : (
             cart.map(item => (
               <div key={item.id} className="flex items-center gap-2 lg:gap-3 p-2 lg:p-3 bg-white border border-slate-100 rounded-xl shadow-sm hover:border-indigo-100 transition-colors group">
+                {/* Imagen pequeña en carrito (TAMBIÉN FIXEADA) */}
                 <div className="w-10 h-10 lg:w-12 lg:h-12 bg-slate-100 rounded-lg overflow-hidden shrink-0 hidden sm:block">
-                    {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-400"><Package size={16}/></div>}
+                    {item.imageUrl ? <img src={getImageUrl(item.imageUrl)} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-400"><Package size={16}/></div>}
                 </div>
                 
                 <div className="flex-1 min-w-0">
@@ -219,7 +251,7 @@ export const NewSaleTab = () => {
         </div>
       </div>
 
-      {/* --- MODAL DE SELECCIÓN DE PAGO --- */}
+      {/* --- MODAL DE SELECCIÓN DE PAGO (Se mantiene igual) --- */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md p-6 shadow-2xl scale-100 animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-200 relative pb-10 sm:pb-6">
