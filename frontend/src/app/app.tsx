@@ -45,7 +45,7 @@ export function App() {
             {/* --- LAYOUT PRINCIPAL --- */}
             <Route path="/" element={<MainLayout />}>
               
-              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route index element={<Navigate to="/login" replace />} />
 
               {/* GRUPO 1: ADMIN y MANAGER (Dashboard, Gastos, Reportes) */}
               <Route element={<RoleGuard allowedRoles={['ADMIN', 'MANAGER']} />}>
