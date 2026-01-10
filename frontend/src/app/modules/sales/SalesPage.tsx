@@ -30,6 +30,7 @@ export const SalesPage = () => {
             <ShoppingCart size={16} /> <span>Nueva Venta</span>
           </button>
           <button
+          id="tour-sales-tab-history"
             onClick={() => setActiveTab('history')}
             className={clsx(
               "flex-1 sm:flex-none justify-center flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all",

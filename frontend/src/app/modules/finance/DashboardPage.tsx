@@ -5,7 +5,8 @@ import {
   AlertTriangle, Clock, AlertOctagon,
   Check,
   Bell,
-  X
+  X,
+  PlayCircle
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -14,7 +15,7 @@ import {
 import { api } from '../../config/api';
 import clsx from 'clsx';
 import { useNotification } from '../../context/NotificationContext';
-
+import { useAuth } from '../../modules/auth/context/AuthContext';
 
 interface DeletionRequest {
   id: string;
@@ -57,12 +58,19 @@ interface DashboardData {
 const COLORS = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
 export const DashboardPage = () => {
+  // 1. Traemos al usuario (necesario si quisiéramos validar algo extra, aunque DemoTour lo maneja)
+  const { user } = useAuth();
+  
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState('7d'); 
   const [requests, setRequests] = useState<DeletionRequest[]>([]); // Estado para solicitudes
   const notify = useNotification();
+  const startDemoTour = () => {
+    // Despachamos el evento que escucha DemoTour.tsx
+    window.dispatchEvent(new Event('start-demo-tour'));
+  };
 
   // Función para cargar solicitudes
   const fetchRequests = async () => {
@@ -89,7 +97,7 @@ export const DashboardPage = () => {
   // Modificar el useEffect principal para cargar también las solicitudes
   useEffect(() => {
     fetchDashboardData();
-    fetchRequests(); // <--- Cargar solicitudes al inicio
+    fetchRequests(); 
   }, [timeRange]);
 
   // Función para resolver (Aceptar/Rechazar)
@@ -126,9 +134,23 @@ export const DashboardPage = () => {
   if (!data) return null;
 
   return (
-    // AJUSTE 1: Padding responsivo (p-4 en móvil, p-6 en PC)
     <div className="p-4 md:p-6 space-y-6 md:space-y-8 animate-fade-in-up pb-10">
       
+      {/* --- BOTÓN DE DEMO (SOLO VISIBLE PARA USUARIO DEMO) --- */}
+      {user?.email === 'demo@nexus.cl' && (
+        <div className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 bg-[length:200%_auto] animate-gradient p-1 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+          <button 
+            onClick={startDemoTour}
+            className="w-full bg-white/10 backdrop-blur-sm border-2 border-white/20 rounded-xl px-6 py-4 flex items-center justify-center gap-3 text-white font-bold text-lg md:text-xl group"
+          >
+            <div className="bg-white text-indigo-600 rounded-full p-2 group-hover:scale-110 transition-transform shadow-lg">
+              <PlayCircle size={24} fill="currentColor" className="text-white fill-indigo-600"/>
+            </div>
+            <span>¿No sabes por dónde empezar? <span className="underline decoration-2 underline-offset-4 decoration-yellow-400">Haz clic aquí para iniciar el Tutorial Interactivo</span> 🚀</span>
+          </button>
+        </div>
+      )}
+
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
@@ -179,16 +201,25 @@ export const DashboardPage = () => {
 
       {/* TARJETAS KPI (Grid Responsivo) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <KPICard title="Ingresos Totales" value={formatMoney(data.cards.totalRevenue)} icon={DollarSign} trend={data.cards.revenueTrend} color="indigo" />
-        <KPICard title="Ventas Totales" value={data.cards.totalSales.toString()} icon={ShoppingBag} trend="Historico" color="blue" />
-        <KPICard title="Ticket Promedio" value={formatMoney(data.cards.averageTicket)} icon={CreditCard} trend="Promedio" color="emerald" />
-        <KPICard title="Ventas Hoy" value={data.cards.todaySales.toString()} icon={TrendingUp} trend="Hoy" color="violet" />
+        <div id="tour-kpi-revenue">
+          <KPICard title="Ingresos Totales" value={formatMoney(data.cards.totalRevenue)} icon={DollarSign} trend={data.cards.revenueTrend} color="indigo" />
+        </div>
+        <div id="tour-kpi-total-sales">
+          <KPICard title="Ventas Totales" value={data.cards.totalSales.toString()} icon={ShoppingBag} trend="Historico" color="blue" />
+        </div>
+        <div id="tour-kpi-ticket">
+          <KPICard title="Ticket Promedio" value={formatMoney(data.cards.averageTicket)} icon={CreditCard} trend="Promedio" color="emerald" />
+        </div>
+        <div id="tour-kpi-today">
+          <KPICard title="Ventas Hoy" value={data.cards.todaySales.toString()} icon={TrendingUp} trend="Hoy" color="violet" />
+        </div>
       </div>
 
       {/* GRÁFICOS */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+        
         {/* Gráfico Historial */}
-        <div className="lg:col-span-2 bg-white p-4 md:p-6 rounded-2xl border border-slate-100 shadow-soft relative overflow-hidden">
+        <div id="tour-chart-history" className="lg:col-span-2 bg-white p-4 md:p-6 rounded-2xl border border-slate-100 shadow-soft relative overflow-hidden">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <h3 className="font-bold text-lg text-slate-800">Tendencia de Ingresos</h3>
             <div className="flex bg-slate-100 p-1 rounded-lg w-full sm:w-auto overflow-x-auto">
@@ -219,7 +250,7 @@ export const DashboardPage = () => {
         </div>
 
         {/* Gráfico Categorías */}
-        <div className="bg-white p-4 md:p-6 rounded-2xl border border-slate-100 shadow-soft flex flex-col h-[400px] lg:h-auto">
+        <div id="tour-chart-categories" className="bg-white p-4 md:p-6 rounded-2xl border border-slate-100 shadow-soft flex flex-col h-[400px] lg:h-auto">
           <h3 className="font-bold text-lg text-slate-800 mb-2">Categorías</h3>
           <div className="flex-1 min-h-[250px]">
             {data.charts.categoriesSales.length === 0 ? (
@@ -228,7 +259,7 @@ export const DashboardPage = () => {
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <Pie data={data.charts.categoriesSales as any} cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={5} dataKey="value">
-                            {data.charts.categoriesSales.map((entry, index) => (
+                            {data.charts.categoriesSales.map((entry: any, index: number) => (
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="none" />
                             ))}
                         </Pie>
@@ -245,10 +276,10 @@ export const DashboardPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
         
         {/* Top Productos */}
-        <div className="bg-white p-4 md:p-6 rounded-2xl border border-slate-100 shadow-soft flex flex-col max-h-[400px]">
+        <div id="tour-list-top" className="bg-white p-4 md:p-6 rounded-2xl border border-slate-100 shadow-soft flex flex-col max-h-[400px]">
             <h3 className="font-bold text-lg text-slate-800 mb-4 sticky top-0 bg-white z-10">Top Productos</h3>
             <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1">
-                {data.charts.topProducts.map((product, index) => (
+                {data.charts.topProducts.map((product: any, index: number) => (
                     <div key={index} className="flex items-center gap-3 md:gap-4">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${index === 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-slate-100 text-slate-600'}`}>#{index + 1}</div>
                         <div className="flex-1 min-w-0">
@@ -262,7 +293,7 @@ export const DashboardPage = () => {
         </div>
 
         {/* Alerta Stock */}
-        <div className="bg-white p-4 md:p-6 rounded-2xl border border-slate-100 shadow-soft flex flex-col max-h-[400px]">
+        <div id="tour-list-low-stock" className="bg-white p-4 md:p-6 rounded-2xl border border-slate-100 shadow-soft flex flex-col max-h-[400px]">
             <div className="flex items-center gap-2 mb-4 sticky top-0 bg-white z-10 pb-2">
                 <div className="p-2 bg-red-50 rounded-lg text-red-600"><AlertOctagon size={20}/></div>
                 <h3 className="font-bold text-lg text-slate-800">Stock Bajo</h3>
@@ -271,7 +302,7 @@ export const DashboardPage = () => {
                 {data.alerts.lowStock.length === 0 ? (
                     <p className="text-slate-400 text-sm text-center py-4">Todo OK ✅</p>
                 ) : (
-                    data.alerts.lowStock.map(p => (
+                    data.alerts.lowStock.map((p: any) => (
                         <div key={p.id} className="flex justify-between items-center p-3 bg-red-50/50 rounded-xl border border-red-100">
                             <div className="min-w-0 flex-1 pr-2">
                                 <p className="font-medium text-slate-800 text-sm truncate">{p.name}</p>
@@ -287,7 +318,7 @@ export const DashboardPage = () => {
         </div>
 
         {/* Alerta Vencimiento */}
-        <div className="bg-white p-4 md:p-6 rounded-2xl border border-slate-100 shadow-soft flex flex-col max-h-[400px]">
+        <div id="tour-list-expiring" className="bg-white p-4 md:p-6 rounded-2xl border border-slate-100 shadow-soft flex flex-col max-h-[400px]">
             <div className="flex items-center gap-2 mb-4 sticky top-0 bg-white z-10 pb-2">
                 <div className="p-2 bg-orange-50 rounded-lg text-orange-600"><Clock size={20}/></div>
                 <h3 className="font-bold text-lg text-slate-800">Vencen Pronto</h3>
@@ -296,7 +327,7 @@ export const DashboardPage = () => {
                 {data.alerts.expiring.length === 0 ? (
                     <p className="text-slate-400 text-sm text-center py-4">Nada por vencer</p>
                 ) : (
-                    data.alerts.expiring.map(p => (
+                    data.alerts.expiring.map((p: any) => (
                         <div key={p.id} className="flex justify-between items-center p-3 bg-orange-50/50 rounded-xl border border-orange-100">
                             <div className="flex-1 min-w-0 pr-2">
                                 <p className="font-medium text-slate-800 text-sm truncate">{p.name}</p>

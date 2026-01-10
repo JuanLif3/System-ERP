@@ -100,11 +100,13 @@ export const Sidebar = ({ onCloseMobile }: SidebarProps) => {
         {filteredMenu.map((item) => {
           const isActive = pathname.startsWith(item.path);
           const Icon = item.icon;
+          const isSales = item.path === '/sales';
           
           return (
             <Link
               key={item.path}
               to={item.path}
+              id={isSales ? "tour-sales-btn" : undefined}
               // AQUÍ AGREGAMOS LA ACCIÓN DE CERRAR
               onClick={onCloseMobile} 
               className={`

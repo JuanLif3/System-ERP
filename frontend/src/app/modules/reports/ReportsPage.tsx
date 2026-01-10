@@ -248,6 +248,7 @@ export const ReportsPage = () => {
         {/* 3. BOTÓN DE ACCIÓN */}
         <div className="border-t border-slate-100 pt-6 flex justify-end">
             <button 
+                id="tour-reports-download"
                 onClick={generatePDF}
                 disabled={loading}
                 className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/20 transition-all hover:-translate-y-1 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed"

@@ -110,6 +110,7 @@ export const ExpensesPage = () => {
             <p className="text-slate-500 text-sm">Administra los egresos de la empresa</p>
           </div>
           <button 
+              id="tour-expenses-create"
               onClick={() => handleOpenModal()}
               className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium shadow-lg shadow-red-600/20 transition-all hover:-translate-y-0.5"
           >

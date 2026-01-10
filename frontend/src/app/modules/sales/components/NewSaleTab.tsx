@@ -10,7 +10,7 @@ interface Product {
   stock: number;
   sku: string;
   imageUrl?: string;
-  isActive: boolean; // <--- 1. AGREGAMOS ESTO PARA SABER SI ESTÁ ACTIVO
+  isActive: boolean;
 }
 interface CartItem extends Product { quantity: number; }
 
@@ -82,18 +82,19 @@ export const NewSaleTab = () => {
 
   const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-  // --- 2. AQUÍ ESTÁ LA MAGIA DE LA SOLUCIÓN ---
-  // Filtramos por nombre/SKU Y ADEMÁS verificamos que p.isActive sea true
   const filteredProducts = products.filter(p => 
-    (p.isActive === true) && // <--- Solo mostramos productos activos
+    (p.isActive === true) && 
     (p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.sku.includes(searchTerm))
   );
 
   return (
     <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-full min-h-0">
       
-      {/* SECCIÓN IZQUIERDA: PRODUCTOS */}
-      <div className="flex-1 flex flex-col bg-white rounded-2xl shadow-soft border border-slate-200 overflow-hidden min-h-0 order-2 lg:order-1">
+      {/* SECCIÓN IZQUIERDA: PRODUCTOS (CON ID PARA TOUR) */}
+      <div 
+        id="tour-sales-products" 
+        className="flex-1 flex flex-col bg-white rounded-2xl shadow-soft border border-slate-200 overflow-hidden min-h-0 order-2 lg:order-1"
+      >
         
         {/* Barra de Búsqueda */}
         <div className="p-3 lg:p-4 border-b border-slate-100 bg-white z-10 shrink-0">
@@ -114,7 +115,6 @@ export const NewSaleTab = () => {
              <div className="h-full flex flex-col items-center justify-center text-slate-400">
                <Package size={48} opacity={0.2} />
                <p className="mt-2 text-sm">
-                 {/* Mensaje inteligente: Si hay búsqueda, dice "no encontrado", si no, podría ser que no hay activos */}
                  {searchTerm ? "No se encontraron productos" : "No hay productos activos para vender"}
                </p>
              </div>
@@ -160,7 +160,7 @@ export const NewSaleTab = () => {
         </div>
       </div>
 
-      {/* SECCIÓN DERECHA: CARRITO (Se mantiene igual) */}
+      {/* SECCIÓN DERECHA: CARRITO */}
       <div className="w-full lg:w-96 flex flex-col bg-white rounded-2xl shadow-soft border border-slate-200 lg:h-full order-1 lg:order-2 shrink-0 max-h-[40vh] lg:max-h-none">
         <div className="p-3 lg:p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center shrink-0">
             <h3 className="font-bold text-slate-800 flex items-center gap-2 text-sm lg:text-base">
@@ -209,6 +209,7 @@ export const NewSaleTab = () => {
             <span className="text-2xl lg:text-3xl font-bold text-slate-900 tracking-tight">${total.toLocaleString()}</span>
           </div>
           <button 
+            id="tour-sales-pay-btn" // <--- ID PARA EL TOUR
             onClick={initiateCheckout} 
             disabled={cart.length === 0 || loading} 
             className="w-full py-3 lg:py-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl font-bold text-base lg:text-lg shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all active:scale-95"
