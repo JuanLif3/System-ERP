@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Search, ShoppingCart, Trash2, Plus, CheckCircle, Package, ImageOff, CreditCard, Banknote, ArrowRightLeft, X } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, Plus, CheckCircle, Package, ImageOff, CreditCard, Banknote, ArrowRightLeft, X, Minus } from 'lucide-react';
 import { api } from '../../../config/api';
 import { useNotification } from '../../../context/NotificationContext';
 
-// ... (Interfaces Product y CartItem se mantienen igual) ...
 interface Product {
   id: string;
   name: string;
@@ -20,9 +19,10 @@ export const NewSaleTab = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
-  
-  // NUEVO: Estado para el modal de pago
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+  // Estado para ver el carrito en móvil (opcional, si quisieras un toggle)
+  // Por ahora lo dejaremos visible abajo.
 
   useEffect(() => { fetchProducts(); }, []);
 
@@ -59,24 +59,20 @@ export const NewSaleTab = () => {
     }));
   };
 
-  // 1. ABRE EL MODAL EN LUGAR DE ENVIAR DIRECTO
   const initiateCheckout = () => {
     if (cart.length === 0) return;
     setShowPaymentModal(true);
   };
 
-  // 2. PROCESA LA VENTA CON EL MÉTODO SELECCIONADO
   const processSale = async (paymentMethod: 'CASH' | 'CARD' | 'TRANSFER') => {
     setLoading(true);
     try {
       const items = cart.map(item => ({ productId: item.id, quantity: item.quantity }));
-      
-      // Enviamos el paymentMethod al backend
       await api.post('/orders', { items, paymentMethod });
       
       notify.success('Venta realizada con éxito');
       setCart([]);
-      setShowPaymentModal(false); // Cierra modal
+      setShowPaymentModal(false);
       fetchProducts();
     } catch (error) {
       console.error(error);
@@ -90,108 +86,183 @@ export const NewSaleTab = () => {
   const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.sku.includes(searchTerm));
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-180px)]">
-      {/* IZQUIERDA: PRODUCTOS (Igual que antes) */}
-      <div className="flex-1 flex flex-col bg-white rounded-2xl shadow-soft border border-slate-200 overflow-hidden">
-        <div className="p-4 border-b border-slate-100 bg-white z-10">
+    // CAMBIO 1: flex-col en móvil, flex-row en PC. Altura ajustada.
+    <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-full min-h-0">
+      
+      {/* SECCIÓN IZQUIERDA: PRODUCTOS */}
+      {/* flex-1 y min-h-0 vitales para scroll */}
+      <div className="flex-1 flex flex-col bg-white rounded-2xl shadow-soft border border-slate-200 overflow-hidden min-h-0 order-2 lg:order-1">
+        
+        {/* Barra de Búsqueda */}
+        <div className="p-3 lg:p-4 border-b border-slate-100 bg-white z-10 shrink-0">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-            <input className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-              placeholder="Buscar por nombre o SKU..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} autoFocus />
+            <input 
+              className="w-full pl-10 pr-4 py-2.5 lg:py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all text-sm lg:text-base"
+              placeholder="Buscar producto..." 
+              value={searchTerm} 
+              onChange={e => setSearchTerm(e.target.value)} 
+            />
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-slate-50/50">
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"> 
-            {filteredProducts.map(product => (
-              <div key={product.id} onClick={() => addToCart(product)} className={`group bg-white rounded-xl border transition-all cursor-pointer relative overflow-hidden flex flex-col ${product.stock === 0 ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:border-indigo-300 hover:shadow-lg hover:-translate-y-1'}`}>
-                <div className="w-full aspect-square bg-slate-100 relative overflow-hidden">
-                    {product.imageUrl ? <img src={product.imageUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" /> : <div className="w-full h-full flex items-center justify-center text-slate-300"><ImageOff size={40} /></div>}
-                    <div className="absolute top-2 left-2"><span className={`text-[10px] font-bold px-2 py-1 rounded-full shadow-sm backdrop-blur-md ${product.stock < 5 ? 'bg-red-500/90 text-white' : 'bg-white/90 text-slate-700'}`}>{product.stock} un.</span></div>
-                    {product.stock > 0 && <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0"><div className="bg-indigo-600 text-white p-2 rounded-lg shadow-lg"><Plus size={20} /></div></div>}
+
+        {/* Grid de Productos Scrollable */}
+        <div className="flex-1 overflow-y-auto p-3 lg:p-4 custom-scrollbar bg-slate-50/50">
+          {filteredProducts.length === 0 ? (
+             <div className="h-full flex flex-col items-center justify-center text-slate-400">
+               <Package size={48} opacity={0.2} />
+               <p className="mt-2 text-sm">No se encontraron productos</p>
+             </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4 pb-20 lg:pb-0"> 
+              {filteredProducts.map(product => (
+                <div key={product.id} onClick={() => addToCart(product)} className={`group bg-white rounded-xl border border-slate-100 shadow-sm transition-all cursor-pointer relative overflow-hidden flex flex-col active:scale-95 duration-150 ${product.stock === 0 ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:border-indigo-300 hover:shadow-md'}`}>
+                  {/* Imagen */}
+                  <div className="w-full aspect-square bg-slate-100 relative overflow-hidden">
+                      {product.imageUrl ? (
+                        <img src={product.imageUrl} className="w-full h-full object-cover transition-transform duration-500 lg:group-hover:scale-110" alt={product.name} />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-slate-300"><ImageOff size={32} /></div>
+                      )}
+                      
+                      {/* Badge Stock */}
+                      <div className="absolute top-2 left-2">
+                        <span className={`text-[10px] font-bold px-2 py-1 rounded-full shadow-sm backdrop-blur-md ${product.stock < 5 ? 'bg-red-500/90 text-white' : 'bg-white/90 text-slate-700'}`}>
+                          {product.stock}
+                        </span>
+                      </div>
+                      
+                      {/* Botón Flotante (Solo PC hover) */}
+                      {product.stock > 0 && (
+                        <div className="absolute bottom-2 right-2 hidden lg:block opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
+                          <div className="bg-indigo-600 text-white p-2 rounded-lg shadow-lg"><Plus size={16} /></div>
+                        </div>
+                      )}
+                  </div>
+
+                  {/* Info Producto */}
+                  <div className="p-2.5 lg:p-3 flex flex-col flex-1 justify-between">
+                      <div>
+                        <div className="font-bold text-slate-700 text-xs lg:text-sm line-clamp-2 mb-1 leading-snug">{product.name}</div>
+                        <span className="text-[10px] font-mono text-slate-400 hidden sm:inline-block">{product.sku}</span>
+                      </div>
+                      <div className="mt-2 pt-2 border-t border-slate-50 flex justify-between items-center">
+                        <div className="text-sm lg:text-lg font-bold text-slate-900">${product.price.toLocaleString()}</div>
+                        {/* Botón + visible en móvil */}
+                        <div className="lg:hidden bg-indigo-50 text-indigo-600 p-1.5 rounded-md"><Plus size={14}/></div>
+                      </div>
+                  </div>
                 </div>
-                <div className="p-3 flex flex-col flex-1 justify-between">
-                    <div><div className="font-bold text-slate-700 text-sm line-clamp-2 mb-1">{product.name}</div><span className="text-[10px] font-mono text-slate-400">{product.sku}</span></div>
-                    <div className="mt-2 pt-2 border-t border-slate-50"><div className="text-lg font-bold text-slate-900">${product.price.toLocaleString()}</div></div>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* DERECHA: CARRITO */}
-      <div className="w-full lg:w-96 flex flex-col bg-white rounded-2xl shadow-soft border border-slate-200 h-full">
-        <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-            <h3 className="font-bold text-slate-800 flex items-center gap-2"><ShoppingCart size={20} className="text-indigo-600"/> Tu Carrito</h3>
-            <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded-full">{cart.length}</span>
+      {/* SECCIÓN DERECHA: CARRITO */}
+      {/* En móvil tiene altura fija pequeña o crece, en PC es ancho fijo */}
+      <div className="w-full lg:w-96 flex flex-col bg-white rounded-2xl shadow-soft border border-slate-200 lg:h-full order-1 lg:order-2 shrink-0 max-h-[40vh] lg:max-h-none">
+        
+        {/* Header Carrito */}
+        <div className="p-3 lg:p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center shrink-0">
+            <h3 className="font-bold text-slate-800 flex items-center gap-2 text-sm lg:text-base">
+              <ShoppingCart size={20} className="text-indigo-600"/> 
+              <span className="hidden sm:inline">Tu Carrito</span>
+              <span className="sm:hidden">Carrito</span>
+            </h3>
+            <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded-full">{cart.length} ítems</span>
         </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+
+        {/* Lista Ítems Carrito (Scrollable) */}
+        <div className="flex-1 overflow-y-auto p-3 lg:p-4 space-y-2 lg:space-y-3 custom-scrollbar min-h-0">
           {cart.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-3">
-                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center"><ShoppingCart size={32} opacity={0.2} /></div>
+            <div className="h-20 lg:h-full flex flex-col items-center justify-center text-slate-400 space-y-2">
                 <p className="text-sm font-medium">Carrito vacío</p>
             </div>
           ) : (
             cart.map(item => (
-              <div key={item.id} className="flex items-center gap-3 p-3 bg-white border border-slate-100 rounded-xl shadow-sm hover:border-indigo-100 transition-colors group">
-                <div className="w-12 h-12 bg-slate-100 rounded-lg overflow-hidden shrink-0">
+              <div key={item.id} className="flex items-center gap-2 lg:gap-3 p-2 lg:p-3 bg-white border border-slate-100 rounded-xl shadow-sm hover:border-indigo-100 transition-colors group">
+                {/* Imagen pequeña */}
+                <div className="w-10 h-10 lg:w-12 lg:h-12 bg-slate-100 rounded-lg overflow-hidden shrink-0 hidden sm:block">
                     {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-400"><Package size={16}/></div>}
                 </div>
-                <div className="flex-1 min-w-0"><p className="font-medium text-slate-700 text-sm truncate">{item.name}</p><p className="text-xs text-slate-400">${item.price.toLocaleString()} x {item.quantity}</p></div>
-                <div className="flex flex-col items-end gap-1"><div className="font-bold text-slate-800 text-sm">${(item.price * item.quantity).toLocaleString()}</div><div className="flex items-center gap-1 bg-slate-50 rounded-lg p-0.5"><button onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:bg-white hover:shadow rounded text-slate-500"><div className="w-3 h-0.5 bg-current"/></button><button onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:bg-white hover:shadow rounded text-slate-500"><Plus size={12}/></button></div></div>
-                <button onClick={() => removeFromCart(item.id)} className="text-slate-300 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={16} /></button>
+                
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-slate-700 text-xs lg:text-sm truncate">{item.name}</p>
+                  <p className="text-[10px] lg:text-xs text-slate-400">${item.price.toLocaleString()} x {item.quantity}</p>
+                </div>
+
+                {/* Controles Cantidad */}
+                <div className="flex flex-col items-end gap-1">
+                  <div className="font-bold text-slate-800 text-xs lg:text-sm">${(item.price * item.quantity).toLocaleString()}</div>
+                  <div className="flex items-center gap-1 bg-slate-50 rounded-lg p-0.5 border border-slate-100">
+                    <button onClick={(e) => {e.stopPropagation(); updateQuantity(item.id, -1)}} className="p-1 hover:bg-white rounded text-slate-500"><Minus size={12}/></button>
+                    <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
+                    <button onClick={(e) => {e.stopPropagation(); updateQuantity(item.id, 1)}} className="p-1 hover:bg-white rounded text-slate-500"><Plus size={12}/></button>
+                  </div>
+                </div>
+
+                {/* Eliminar */}
+                <button onClick={(e) => {e.stopPropagation(); removeFromCart(item.id)}} className="text-slate-300 hover:text-red-500 p-1 lg:opacity-0 lg:group-hover:opacity-100 transition-all"><Trash2 size={16} /></button>
               </div>
             ))
           )}
         </div>
-        <div className="p-5 bg-slate-50 border-t border-slate-200">
-          <div className="flex justify-between items-end mb-4"><span className="text-slate-500 font-medium">Total</span><span className="text-3xl font-bold text-slate-900 tracking-tight">${total.toLocaleString()}</span></div>
-          <button onClick={initiateCheckout} disabled={cart.length === 0 || loading} className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl font-bold text-lg shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all hover:-translate-y-1 active:translate-y-0">
-            {loading ? <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><CheckCircle size={20} /> Confirmar Venta</>}
+
+        {/* Footer Totales */}
+        <div className="p-3 lg:p-5 bg-slate-50 border-t border-slate-200 shrink-0">
+          <div className="flex justify-between items-end mb-3 lg:mb-4">
+            <span className="text-slate-500 font-medium text-sm">Total</span>
+            <span className="text-2xl lg:text-3xl font-bold text-slate-900 tracking-tight">${total.toLocaleString()}</span>
+          </div>
+          <button 
+            onClick={initiateCheckout} 
+            disabled={cart.length === 0 || loading} 
+            className="w-full py-3 lg:py-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl font-bold text-base lg:text-lg shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all active:scale-95"
+          >
+            {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><CheckCircle size={20} /> <span className="hidden sm:inline">Confirmar Venta</span><span className="sm:hidden">Cobrar</span></>}
           </button>
         </div>
       </div>
 
-      {/* --- MODAL DE SELECCIÓN DE PAGO --- */}
+      {/* --- MODAL DE SELECCIÓN DE PAGO (Responsive) --- */}
       {showPaymentModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl scale-100 animate-in zoom-in-95 duration-200 relative">
-            <button onClick={() => setShowPaymentModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"><X size={24}/></button>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md p-6 shadow-2xl scale-100 animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-200 relative pb-10 sm:pb-6">
+            <button onClick={() => setShowPaymentModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full p-1"><X size={20}/></button>
             
-            <div className="text-center mb-8">
-              <h3 className="text-2xl font-bold text-slate-800">Método de Pago</h3>
-              <p className="text-slate-500 mt-1">Selecciona cómo pagará el cliente</p>
+            <div className="text-center mb-6 lg:mb-8">
+              <h3 className="text-xl lg:text-2xl font-bold text-slate-800">Método de Pago</h3>
+              <p className="text-slate-500 mt-1 text-sm">Selecciona cómo pagará el cliente</p>
               <div className="mt-4 text-3xl font-bold text-indigo-600">${total.toLocaleString()}</div>
             </div>
 
             <div className="grid grid-cols-1 gap-3">
-              <button onClick={() => processSale('CASH')} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 hover:border-green-500 hover:bg-green-50 group transition-all">
+              <button onClick={() => processSale('CASH')} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 hover:border-green-500 hover:bg-green-50 group transition-all active:bg-green-100">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-green-100 text-green-600 rounded-lg"><Banknote size={24}/></div>
                   <span className="font-bold text-slate-700 group-hover:text-green-700">Efectivo</span>
                 </div>
-                <div className="w-4 h-4 rounded-full border-2 border-slate-300 group-hover:border-green-500"></div>
               </button>
 
-              <button onClick={() => processSale('CARD')} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50 group transition-all">
+              <button onClick={() => processSale('CARD')} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50 group transition-all active:bg-blue-100">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><CreditCard size={24}/></div>
                   <span className="font-bold text-slate-700 group-hover:text-blue-700">Débito / Crédito</span>
                 </div>
-                <div className="w-4 h-4 rounded-full border-2 border-slate-300 group-hover:border-blue-500"></div>
               </button>
 
-              <button onClick={() => processSale('TRANSFER')} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 hover:border-violet-500 hover:bg-violet-50 group transition-all">
+              <button onClick={() => processSale('TRANSFER')} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 hover:border-violet-500 hover:bg-violet-50 group transition-all active:bg-violet-100">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-violet-100 text-violet-600 rounded-lg"><ArrowRightLeft size={24}/></div>
                   <span className="font-bold text-slate-700 group-hover:text-violet-700">Transferencia</span>
                 </div>
-                <div className="w-4 h-4 rounded-full border-2 border-slate-300 group-hover:border-violet-500"></div>
               </button>
             </div>
             
             {loading && (
-               <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center rounded-2xl z-10">
+               <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center rounded-2xl z-10">
                    <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-3"></div>
                    <p className="font-medium text-indigo-600">Procesando pago...</p>
                </div>

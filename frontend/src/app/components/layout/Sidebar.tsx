@@ -1,10 +1,15 @@
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, ShoppingCart, Package, Users, 
-  Receipt, BarChart3, LogOut, Building2, Store, FileText // <--- Importamos FileText
+  Receipt, BarChart3, LogOut, Building2, Store, FileText 
 } from 'lucide-react';
 import { useAuth } from '../../modules/auth/context/AuthContext';
-// 1. DEFINICIÓN DEL MENÚ CENTRALIZADA
+
+// Definimos la estructura de las props
+interface SidebarProps {
+  onCloseMobile?: () => void;
+}
+
 const MENU_ITEMS = [
   { 
     path: '/dashboard', 
@@ -14,7 +19,7 @@ const MENU_ITEMS = [
   },
   { 
     path: '/sales', 
-    label: 'Ventas y Pedidos', 
+    label: 'Ventas', 
     icon: ShoppingCart, 
     roles: ['ADMIN', 'SELLER'] 
   },
@@ -30,12 +35,11 @@ const MENU_ITEMS = [
     icon: Receipt, 
     roles: ['ADMIN', 'MANAGER'] 
   },
-  // --- AQUI AGREGAMOS REPORTES (Integrado) ---
   { 
     path: '/reports', 
     label: 'Reportes', 
     icon: FileText, 
-    roles: ['ADMIN', 'MANAGER'] // Solo admins y managers ven esto
+    roles: ['ADMIN', 'MANAGER'] 
   },
   { 
     path: '/users', 
@@ -43,7 +47,6 @@ const MENU_ITEMS = [
     icon: Users, 
     roles: ['ADMIN'] 
   },
-  // --- SECCIÓN SUPER ADMIN ---
   { 
     path: '/saas', 
     label: 'Panel SaaS', 
@@ -58,23 +61,23 @@ const MENU_ITEMS = [
   }
 ];
 
-export const Sidebar = () => {
+// Recibimos las props aquí
+export const Sidebar = ({ onCloseMobile }: SidebarProps) => {
   const { pathname } = useLocation();
   const { user, logout } = useAuth();
 
-  // 2. FILTRADO POR ROL
   const filteredMenu = MENU_ITEMS.filter(item => {
     if (!user?.roles) return false;
-    // Verifica si el rol del usuario está permitido para este item
-    // Nota: Asumimos que user.roles es un string (ej: 'ADMIN'). 
-    // Si fuera un array, usaríamos user.roles.some(r => item.roles.includes(r))
     return item.roles.includes(user.roles);
   });
 
   return (
-    <aside className="w-72 bg-white h-screen fixed left-0 top-0 border-r border-slate-100 flex flex-col z-30 shadow-soft">
+    // NOTA: Quité 'fixed left-0 top-0' y puse 'h-full'. 
+    // El posicionamiento ahora lo controla el MainLayout.
+    <aside className="w-72 bg-white h-full border-r border-slate-100 flex flex-col z-30 shadow-soft">
+      
       {/* HEADER CON LOGO */}
-      <div className="p-8 pb-4">
+      <div className="p-8 pb-4 flex-shrink-0"> {/* flex-shrink-0 evita que se aplaste */}
         <div className="flex items-center gap-3 mb-1">
           <div className="w-10 h-10 bg-gradient-to-tr from-indigo-600 to-violet-500 rounded-xl flex items-center justify-center text-white shadow-glow">
             <Store size={22} strokeWidth={2.5} />
@@ -102,6 +105,8 @@ export const Sidebar = () => {
             <Link
               key={item.path}
               to={item.path}
+              // AQUÍ AGREGAMOS LA ACCIÓN DE CERRAR
+              onClick={onCloseMobile} 
               className={`
                 relative flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-300 group
                 ${isActive 
@@ -110,7 +115,6 @@ export const Sidebar = () => {
                 }
               `}
             >
-              {/* Indicador lateral activo */}
               {isActive && (
                 <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-indigo-600 rounded-r-full" />
               )}
@@ -127,7 +131,7 @@ export const Sidebar = () => {
       </nav>
 
       {/* FOOTER DEL SIDEBAR */}
-      <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+      <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex-shrink-0">
         <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100 shadow-sm mb-3">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-600 font-bold border-2 border-white shadow-sm">
             {user?.fullName?.charAt(0) || 'U'}

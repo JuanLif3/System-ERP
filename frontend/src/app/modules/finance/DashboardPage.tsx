@@ -126,52 +126,49 @@ export const DashboardPage = () => {
   if (!data) return null;
 
   return (
-    <div className="p-6 space-y-8 animate-fade-in-up pb-10">
+    // AJUSTE 1: Padding responsivo (p-4 en móvil, p-6 en PC)
+    <div className="p-4 md:p-6 space-y-6 md:space-y-8 animate-fade-in-up pb-10">
+      
       {/* HEADER */}
-      <div className="flex justify-between items-end">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Resumen Financiero</h2>
-          <p className="text-slate-500 mt-1">Panorama general de tu negocio hoy.</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">Resumen Financiero</h2>
+          <p className="text-slate-500 mt-1 text-sm md:text-base">Panorama general de tu negocio hoy.</p>
         </div>
-        <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 text-sm font-medium text-slate-600">
+        <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 text-sm font-medium text-slate-600 w-full md:w-auto justify-center md:justify-start">
           <Calendar size={16} className="text-indigo-500"/>
           {new Date().toLocaleDateString('es-CL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
         </div>
       </div>
 
-      {/* --- NUEVA SECCIÓN: SOLICITUDES PENDIENTES --- */}
+      {/* SOLICITUDES PENDIENTES */}
       {requests.length > 0 && (
           <div className="bg-white rounded-2xl shadow-md border border-red-100 overflow-hidden animate-in slide-in-from-top-4">
               <div className="bg-red-50/50 p-4 border-b border-red-100 flex items-center gap-2">
                   <div className="p-1.5 bg-red-100 text-red-600 rounded-lg animate-pulse"><Bell size={18}/></div>
-                  <h3 className="font-bold text-red-900">Solicitudes de Eliminación Pendientes ({requests.length})</h3>
+                  <h3 className="font-bold text-red-900 text-sm md:text-base">Solicitudes Pendientes ({requests.length})</h3>
               </div>
               <div className="divide-y divide-slate-100">
                   {requests.map(req => (
-                      <div key={req.id} className="p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:bg-slate-50 transition-colors">
+                      <div key={req.id} className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-slate-50 transition-colors">
                           <div className="flex-1">
                               <p className="text-sm text-slate-800 font-medium">
-                                  <span className="font-bold text-indigo-600">{req.requestedBy.fullName}</span> quiere eliminar la venta <span className="font-mono bg-slate-100 px-1 rounded">#{req.order.id.slice(-6)}</span> (${Number(req.order.total).toLocaleString('es-CL')})
+                                  <span className="font-bold text-indigo-600">{req.requestedBy.fullName}</span> solicita borrar venta <span className="font-mono bg-slate-100 px-1 rounded">#{req.order.id.slice(-6)}</span>
                               </p>
-                              <p className="text-sm text-slate-500 mt-1 italic">
-                                  "{req.reason}"
-                              </p>
-                              <p className="text-xs text-slate-400 mt-1">
-                                  {new Date(req.createdAt).toLocaleString('es-CL')}
-                              </p>
+                              <p className="text-xs text-slate-500 mt-1 italic">"{req.reason}"</p>
                           </div>
-                          <div className="flex gap-2 shrink-0">
+                          <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0">
                               <button 
                                 onClick={() => handleResolve(req.id, 'REJECT')}
-                                className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 hover:text-slate-800 font-medium text-xs shadow-sm"
+                                className="flex-1 sm:flex-none justify-center flex items-center gap-1 px-3 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 text-xs font-medium"
                               >
                                   <X size={14}/> Rechazar
                               </button>
                               <button 
                                 onClick={() => handleResolve(req.id, 'APPROVE')}
-                                className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-xs shadow-md shadow-red-600/20"
+                                className="flex-1 sm:flex-none justify-center flex items-center gap-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-xs font-medium shadow-md shadow-red-600/20"
                               >
-                                  <Check size={14}/> Aprobar (Borrar)
+                                  <Check size={14}/> Aprobar
                               </button>
                           </div>
                       </div>
@@ -180,29 +177,29 @@ export const DashboardPage = () => {
           </div>
       )}
 
-      {/* TARJETAS KPI */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* TARJETAS KPI (Grid Responsivo) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <KPICard title="Ingresos Totales" value={formatMoney(data.cards.totalRevenue)} icon={DollarSign} trend={data.cards.revenueTrend} color="indigo" />
         <KPICard title="Ventas Totales" value={data.cards.totalSales.toString()} icon={ShoppingBag} trend="Historico" color="blue" />
         <KPICard title="Ticket Promedio" value={formatMoney(data.cards.averageTicket)} icon={CreditCard} trend="Promedio" color="emerald" />
         <KPICard title="Ventas Hoy" value={data.cards.todaySales.toString()} icon={TrendingUp} trend="Hoy" color="violet" />
       </div>
 
-      {/* SECCIÓN DE GRÁFICOS */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* GRÁFICO HISTORIAL */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-soft hover:shadow-lg transition-shadow duration-300 relative">
+      {/* GRÁFICOS */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+        {/* Gráfico Historial */}
+        <div className="lg:col-span-2 bg-white p-4 md:p-6 rounded-2xl border border-slate-100 shadow-soft relative overflow-hidden">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <h3 className="font-bold text-lg text-slate-800">Tendencia de Ingresos</h3>
-            <div className="flex bg-slate-100 p-1 rounded-lg">
-                {[ { label: '7 Días', value: '7d' }, { label: '30 Días', value: '30d' }, { label: '3 Meses', value: '3m' }, { label: '1 Año', value: '1y' } ].map((opt) => (
-                    <button key={opt.value} onClick={() => setTimeRange(opt.value)} className={clsx("px-3 py-1.5 text-xs font-bold rounded-md transition-all", timeRange === opt.value ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50")}>
+            <div className="flex bg-slate-100 p-1 rounded-lg w-full sm:w-auto overflow-x-auto">
+                {[ { label: '7D', value: '7d' }, { label: '30D', value: '30d' }, { label: '3M', value: '3m' }, { label: '1A', value: '1y' } ].map((opt) => (
+                    <button key={opt.value} onClick={() => setTimeRange(opt.value)} className={clsx("flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold rounded-md transition-all whitespace-nowrap", timeRange === opt.value ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700")}>
                         {opt.label}
                     </button>
                 ))}
             </div>
           </div>
-          <div className="h-80 relative">
+          <div className="h-64 md:h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data.charts.salesHistory || []}>
                 <defs>
@@ -212,8 +209,8 @@ export const DashboardPage = () => {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#64748B', fontSize: 12}} dy={10} minTickGap={30} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748B', fontSize: 12}} tickFormatter={(value) => `$${value/1000}k`} />
+                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#64748B', fontSize: 10}} dy={10} minTickGap={30} />
+                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748B', fontSize: 10}} tickFormatter={(value) => `$${value/1000}k`} width={35}/>
                 <Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)'}} formatter={(value: number | undefined) => [value !== undefined ? formatMoney(value) : '$0', 'Ingresos']} />
                 <Area type="monotone" dataKey="total" stroke="#4F46E5" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" animationDuration={1000} />
               </AreaChart>
@@ -221,22 +218,22 @@ export const DashboardPage = () => {
           </div>
         </div>
 
-        {/* GRÁFICO CATEGORÍAS */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-soft hover:shadow-lg transition-shadow duration-300 flex flex-col">
-          <h3 className="font-bold text-lg text-slate-800 mb-2">Categorías Más Vendidas</h3>
-          <div className="flex-1 min-h-[300px]">
+        {/* Gráfico Categorías */}
+        <div className="bg-white p-4 md:p-6 rounded-2xl border border-slate-100 shadow-soft flex flex-col h-[400px] lg:h-auto">
+          <h3 className="font-bold text-lg text-slate-800 mb-2">Categorías</h3>
+          <div className="flex-1 min-h-[250px]">
             {data.charts.categoriesSales.length === 0 ? (
-                <div className="h-full flex items-center justify-center text-slate-400 text-sm">Sin datos aún</div>
+                <div className="h-full flex items-center justify-center text-slate-400 text-sm">Sin datos</div>
             ) : (
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                        <Pie data={data.charts.categoriesSales as any} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                        <Pie data={data.charts.categoriesSales as any} cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={5} dataKey="value">
                             {data.charts.categoriesSales.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="none" />
                             ))}
                         </Pie>
                         <Tooltip content={<CustomPieTooltip />} />
-                        <Legend verticalAlign="bottom" height={36} iconType="circle" iconSize={8}/>
+                        <Legend verticalAlign="bottom" height={36} iconType="circle" iconSize={8} wrapperStyle={{fontSize: '11px'}}/>
                     </PieChart>
                 </ResponsiveContainer>
             )}
@@ -244,19 +241,19 @@ export const DashboardPage = () => {
         </div>
       </div>
 
-      {/* SECCIÓN INFERIOR: TOP PRODUCTOS Y ALERTAS (SCROLLABLE) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* LISTAS INFERIORES */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
         
-        {/* TOP PRODUCTOS */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-soft flex flex-col max-h-[400px]">
-            <h3 className="font-bold text-lg text-slate-800 mb-4 sticky top-0 bg-white z-10">Top 5 Productos</h3>
+        {/* Top Productos */}
+        <div className="bg-white p-4 md:p-6 rounded-2xl border border-slate-100 shadow-soft flex flex-col max-h-[400px]">
+            <h3 className="font-bold text-lg text-slate-800 mb-4 sticky top-0 bg-white z-10">Top Productos</h3>
             <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1">
                 {data.charts.topProducts.map((product, index) => (
-                    <div key={index} className="flex items-center gap-4">
+                    <div key={index} className="flex items-center gap-3 md:gap-4">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${index === 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-slate-100 text-slate-600'}`}>#{index + 1}</div>
                         <div className="flex-1 min-w-0">
                             <p className="font-semibold text-slate-800 text-sm truncate">{product.name}</p>
-                            <p className="text-xs text-slate-400">{product.value} unidades</p>
+                            <p className="text-xs text-slate-400">{product.value} uds.</p>
                         </div>
                         <div className="text-right font-bold text-slate-800 text-sm">{formatMoney(product.revenue)}</div>
                     </div>
@@ -264,25 +261,23 @@ export const DashboardPage = () => {
             </div>
         </div>
 
-        {/* ALERTA DE STOCK BAJO (SCROLLABLE) */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-soft flex flex-col max-h-[400px]">
+        {/* Alerta Stock */}
+        <div className="bg-white p-4 md:p-6 rounded-2xl border border-slate-100 shadow-soft flex flex-col max-h-[400px]">
             <div className="flex items-center gap-2 mb-4 sticky top-0 bg-white z-10 pb-2">
                 <div className="p-2 bg-red-50 rounded-lg text-red-600"><AlertOctagon size={20}/></div>
-                <h3 className="font-bold text-lg text-slate-800">Alerta de Stock</h3>
+                <h3 className="font-bold text-lg text-slate-800">Stock Bajo</h3>
             </div>
-            
-            {/* AQUI ESTA EL CAMBIO DEL SCROLL */}
             <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar flex-1">
                 {data.alerts.lowStock.length === 0 ? (
-                    <p className="text-slate-400 text-sm text-center py-4">Todo en orden ✅</p>
+                    <p className="text-slate-400 text-sm text-center py-4">Todo OK ✅</p>
                 ) : (
                     data.alerts.lowStock.map(p => (
                         <div key={p.id} className="flex justify-between items-center p-3 bg-red-50/50 rounded-xl border border-red-100">
-                            <div>
-                                <p className="font-medium text-slate-800 text-sm">{p.name}</p>
-                                <p className="text-[10px] text-slate-500 font-mono">{p.sku}</p>
+                            <div className="min-w-0 flex-1 pr-2">
+                                <p className="font-medium text-slate-800 text-sm truncate">{p.name}</p>
+                                <p className="text-[10px] text-slate-500 font-mono truncate">{p.sku}</p>
                             </div>
-                            <span className="px-2 py-1 bg-white text-red-600 font-bold text-xs rounded-md shadow-sm border border-red-100">
+                            <span className="shrink-0 px-2 py-1 bg-white text-red-600 font-bold text-xs rounded-md shadow-sm border border-red-100">
                                 {p.stock} un.
                             </span>
                         </div>
@@ -291,17 +286,15 @@ export const DashboardPage = () => {
             </div>
         </div>
 
-        {/* ALERTA DE VENCIMIENTO (SCROLLABLE) */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-soft flex flex-col max-h-[400px]">
+        {/* Alerta Vencimiento */}
+        <div className="bg-white p-4 md:p-6 rounded-2xl border border-slate-100 shadow-soft flex flex-col max-h-[400px]">
             <div className="flex items-center gap-2 mb-4 sticky top-0 bg-white z-10 pb-2">
                 <div className="p-2 bg-orange-50 rounded-lg text-orange-600"><Clock size={20}/></div>
                 <h3 className="font-bold text-lg text-slate-800">Vencen Pronto</h3>
             </div>
-            
-            {/* AQUI ESTA EL CAMBIO DEL SCROLL */}
             <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar flex-1">
                 {data.alerts.expiring.length === 0 ? (
-                    <p className="text-slate-400 text-sm text-center py-4">Ningún producto por vencer</p>
+                    <p className="text-slate-400 text-sm text-center py-4">Nada por vencer</p>
                 ) : (
                     data.alerts.expiring.map(p => (
                         <div key={p.id} className="flex justify-between items-center p-3 bg-orange-50/50 rounded-xl border border-orange-100">
