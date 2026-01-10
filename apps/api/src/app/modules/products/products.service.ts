@@ -14,6 +14,8 @@ import { CloudinaryService } from '../cloudinary/cloudinary.service';
 // Importamos multer para evitar errores de tipado
 import 'multer';
 import { User } from '../users/entities/user.entity';
+import { Category } from '../categories/entities/category.entity';
+
 
 @Injectable()
 export class ProductsService {
@@ -30,18 +32,19 @@ export class ProductsService {
   async create(createProductDto: CreateProductDto, user: User, file?: Express.Multer.File) {
     try {
       let imageUrl = null;
+      // Desestructuramos para sacar categoryId aparte
+      const { categoryId, ...productDetails } = createProductDto;
 
-      // 1. Subida a Cloudinary si existe archivo
       if (file) {
         imageUrl = await this.cloudinaryService.uploadImage(file);
       }
 
-      // 2. Creación en BD
       const product = this.productRepository.create({
-        ...createProductDto,
+        ...productDetails,
         imageUrl: imageUrl,
-        company: user.company, 
-        // Eliminamos user: user porque no existe en la entidad Product
+        company: user.company,
+        // Asignamos la relación usando el ID que viene del frontend
+        category: { id: categoryId } as Category, 
       });
 
       await this.productRepository.save(product);
@@ -51,40 +54,35 @@ export class ProductsService {
     }
   }
 
-  // --- BUSCAR TODOS (Paginado + Multi-tenant) ---
+  // --- BUSCAR TODOS ---
   async findAll(queryParameters: any, user: User) {
     const { limit = 10, offset = 0 } = queryParameters;
-    
     return this.productRepository.find({
       take: limit,
       skip: offset,
-      where: { 
-        company: { id: user.company.id } // Solo productos de SU empresa
-      },
-      relations: ['category'], // Opcional: traer relaciones si las necesitas
+      where: { company: { id: user.company.id } },
+      relations: ['category'], // Para que el frontend reciba el objeto completo con nombre
     });
   }
 
   // --- BUSCAR UNO ---
   async findOne(id: string, user: User) {
     const product = await this.productRepository.findOne({
-      where: { 
-        id, 
-        company: { id: user.company.id } 
-      },
+      where: { id, company: { id: user.company.id } },
       relations: ['category'],
     });
-
     if (!product) throw new NotFoundException(`Product with id: ${id} not found`);
     return product;
   }
 
   // --- ACTUALIZAR ---
   async update(id: string, updateProductDto: UpdateProductDto, user: User, file?: Express.Multer.File) {
-    // 1. Verificamos que exista y pertenezca a la empresa
     const product = await this.findOne(id, user);
+    
+    // Desestructuramos
+    const { categoryId, ...rest } = updateProductDto;
 
-    // 2. Si hay nueva imagen, subirla
+    // 1. Manejo de Imagen
     if (file) {
       try {
         const newImageUrl = await this.cloudinaryService.uploadImage(file);
@@ -95,8 +93,14 @@ export class ProductsService {
       }
     }
 
-    // 3. Merge de datos y guardado
-    this.productRepository.merge(product, updateProductDto);
+    // 2. Manejo de Categoría
+    if (categoryId) {
+      // Type casting simple para actualizar la relación
+      product.category = { id: categoryId } as Category;
+    }
+
+    // 3. Merge del resto
+    this.productRepository.merge(product, rest);
     
     try {
       return await this.productRepository.save(product);
@@ -112,7 +116,6 @@ export class ProductsService {
     return { message: 'Product deleted successfully' };
   }
 
-  // --- MANEJO DE ERRORES ---
   private handleDBExceptions(error: any) {
     if (error.code === '23505') throw new BadRequestException(error.detail);
     this.logger.error(error);
