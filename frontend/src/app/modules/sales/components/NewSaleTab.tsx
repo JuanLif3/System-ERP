@@ -14,27 +14,28 @@ interface Product {
 }
 interface CartItem extends Product { quantity: number; }
 
-// --- SOLUCIÓN FINAL IMÁGENES ---
+// --- CORRECCIÓN FINAL DE IMAGEN ---
 const getImageUrl = (imagePath?: string) => {
   if (!imagePath) return undefined;
   
-  // 1. LIMPIEZA DE "BASURA" LOCALHOST
-  // Si la base de datos guardó "http://localhost:3000/uploads...", lo borramos.
+  // 1. PRIMERO LIMPIAMOS EL "LOCALHOST" DE LA BASE DE DATOS
+  // Esto arregla el error: reemplazamos la parte "http://localhost:3000" por nada.
   let cleanPath = imagePath
     .replace('http://localhost:3000', '')
+    .replace('https://localhost:3000', '')
     .replace('localhost:3000', '');
 
-  // 2. Si después de limpiar sigue siendo una URL externa real (ej: https://amazon.s3...), la usamos.
+  // 2. Si es una URL externa REAL (ej: https://aws.s3...), la devolvemos.
+  // Pero como ya borramos el localhost arriba, esta línea ya no dejará pasar la URL mala.
   if (cleanPath.startsWith('http')) return cleanPath;
 
-  // 3. Quitamos barras iniciales para evitar dobles slash (//)
+  // 3. Limpiamos barras duplicadas
   cleanPath = cleanPath.startsWith('/') ? cleanPath.slice(1) : cleanPath;
 
-  // 4. DEFINIR EL DOMINIO BASE
-  // Si estamos en nortedev.cl, usamos ese dominio. Si no, usamos localhost.
+  // 4. CONSTRUIMOS LA URL CORRECTA SEGÚN DONDE ESTEMOS
   const isProd = window.location.hostname.includes('nortedev.cl');
   
-  // AQUÍ ESTÁ LA CLAVE: En producción forzamos HTTPS y tu dominio
+  // Si estamos en nortedev.cl, usamos ese dominio. Si no, usamos localhost.
   const baseUrl = isProd ? 'https://www.nortedev.cl' : 'http://localhost:3000';
 
   return `${baseUrl}/${cleanPath}`;
@@ -148,7 +149,7 @@ export const NewSaleTab = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4 pb-20 lg:pb-0"> 
               {filteredProducts.map(product => (
                 <div key={product.id} onClick={() => addToCart(product)} className={`group bg-white rounded-xl border border-slate-100 shadow-sm transition-all cursor-pointer relative overflow-hidden flex flex-col active:scale-95 duration-150 ${product.stock === 0 ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:border-indigo-300 hover:shadow-md'}`}>
-                  {/* Imagen */}
+                  {/* Imagen (Usamos la función corregida) */}
                   <div className="w-full aspect-square bg-slate-100 relative overflow-hidden">
                       {product.imageUrl ? (
                         <img 
@@ -197,10 +198,9 @@ export const NewSaleTab = () => {
         </div>
       </div>
 
-      {/* SECCIÓN DERECHA: CARRITO (PEQUEÑO EN MÓVIL) */}
+      {/* SECCIÓN DERECHA: CARRITO (Mantenemos diseño móvil ajustado) */}
       <div className="w-full lg:w-96 flex flex-col bg-white rounded-2xl shadow-soft border border-slate-200 lg:h-full order-2 lg:order-2 shrink-0 h-auto max-h-[35vh] lg:max-h-none border-t-4 lg:border-t-0 border-indigo-50 lg:border-none shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] lg:shadow-soft z-20">
         
-        {/* Header Carrito */}
         <div className="p-2 lg:p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center shrink-0">
             <h3 className="font-bold text-slate-800 flex items-center gap-2 text-sm lg:text-base">
               <ShoppingCart size={20} className="text-indigo-600"/> 
@@ -210,7 +210,6 @@ export const NewSaleTab = () => {
             <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded-full">{cart.length} ítems</span>
         </div>
 
-        {/* Lista de Items */}
         <div className="flex-1 overflow-y-auto p-2 lg:p-4 space-y-2 lg:space-y-3 custom-scrollbar min-h-0">
           {cart.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-2 py-4">
@@ -219,7 +218,6 @@ export const NewSaleTab = () => {
           ) : (
             cart.map(item => (
               <div key={item.id} className="flex items-center gap-2 lg:gap-3 p-2 lg:p-3 bg-white border border-slate-100 rounded-xl shadow-sm hover:border-indigo-100 transition-colors group">
-                {/* Imagen en Carrito (También usa getImageUrl) */}
                 <div className="w-10 h-10 lg:w-12 lg:h-12 bg-slate-100 rounded-lg overflow-hidden shrink-0 hidden sm:block">
                     {item.imageUrl ? <img src={getImageUrl(item.imageUrl)} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-400"><Package size={16}/></div>}
                 </div>
@@ -244,7 +242,6 @@ export const NewSaleTab = () => {
           )}
         </div>
 
-        {/* Footer Totales */}
         <div className="p-3 lg:p-5 bg-slate-50 border-t border-slate-200 shrink-0">
           <div className="flex justify-between items-end mb-2 lg:mb-4">
             <span className="text-slate-500 font-medium text-sm">Total</span>
