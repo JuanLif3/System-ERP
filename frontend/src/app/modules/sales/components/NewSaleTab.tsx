@@ -10,6 +10,7 @@ interface Product {
   stock: number;
   sku: string;
   imageUrl?: string;
+  isActive: boolean; // <--- 1. AGREGAMOS ESTO PARA SABER SI ESTÁ ACTIVO
 }
 interface CartItem extends Product { quantity: number; }
 
@@ -20,9 +21,6 @@ export const NewSaleTab = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-
-  // Estado para ver el carrito en móvil (opcional, si quisieras un toggle)
-  // Por ahora lo dejaremos visible abajo.
 
   useEffect(() => { fetchProducts(); }, []);
 
@@ -83,14 +81,18 @@ export const NewSaleTab = () => {
   };
 
   const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.sku.includes(searchTerm));
+
+  // --- 2. AQUÍ ESTÁ LA MAGIA DE LA SOLUCIÓN ---
+  // Filtramos por nombre/SKU Y ADEMÁS verificamos que p.isActive sea true
+  const filteredProducts = products.filter(p => 
+    (p.isActive === true) && // <--- Solo mostramos productos activos
+    (p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.sku.includes(searchTerm))
+  );
 
   return (
-    // CAMBIO 1: flex-col en móvil, flex-row en PC. Altura ajustada.
     <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-full min-h-0">
       
       {/* SECCIÓN IZQUIERDA: PRODUCTOS */}
-      {/* flex-1 y min-h-0 vitales para scroll */}
       <div className="flex-1 flex flex-col bg-white rounded-2xl shadow-soft border border-slate-200 overflow-hidden min-h-0 order-2 lg:order-1">
         
         {/* Barra de Búsqueda */}
@@ -111,7 +113,10 @@ export const NewSaleTab = () => {
           {filteredProducts.length === 0 ? (
              <div className="h-full flex flex-col items-center justify-center text-slate-400">
                <Package size={48} opacity={0.2} />
-               <p className="mt-2 text-sm">No se encontraron productos</p>
+               <p className="mt-2 text-sm">
+                 {/* Mensaje inteligente: Si hay búsqueda, dice "no encontrado", si no, podría ser que no hay activos */}
+                 {searchTerm ? "No se encontraron productos" : "No hay productos activos para vender"}
+               </p>
              </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4 pb-20 lg:pb-0"> 
@@ -125,14 +130,12 @@ export const NewSaleTab = () => {
                         <div className="w-full h-full flex items-center justify-center text-slate-300"><ImageOff size={32} /></div>
                       )}
                       
-                      {/* Badge Stock */}
                       <div className="absolute top-2 left-2">
                         <span className={`text-[10px] font-bold px-2 py-1 rounded-full shadow-sm backdrop-blur-md ${product.stock < 5 ? 'bg-red-500/90 text-white' : 'bg-white/90 text-slate-700'}`}>
                           {product.stock}
                         </span>
                       </div>
                       
-                      {/* Botón Flotante (Solo PC hover) */}
                       {product.stock > 0 && (
                         <div className="absolute bottom-2 right-2 hidden lg:block opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
                           <div className="bg-indigo-600 text-white p-2 rounded-lg shadow-lg"><Plus size={16} /></div>
@@ -140,7 +143,6 @@ export const NewSaleTab = () => {
                       )}
                   </div>
 
-                  {/* Info Producto */}
                   <div className="p-2.5 lg:p-3 flex flex-col flex-1 justify-between">
                       <div>
                         <div className="font-bold text-slate-700 text-xs lg:text-sm line-clamp-2 mb-1 leading-snug">{product.name}</div>
@@ -148,7 +150,6 @@ export const NewSaleTab = () => {
                       </div>
                       <div className="mt-2 pt-2 border-t border-slate-50 flex justify-between items-center">
                         <div className="text-sm lg:text-lg font-bold text-slate-900">${product.price.toLocaleString()}</div>
-                        {/* Botón + visible en móvil */}
                         <div className="lg:hidden bg-indigo-50 text-indigo-600 p-1.5 rounded-md"><Plus size={14}/></div>
                       </div>
                   </div>
@@ -159,11 +160,8 @@ export const NewSaleTab = () => {
         </div>
       </div>
 
-      {/* SECCIÓN DERECHA: CARRITO */}
-      {/* En móvil tiene altura fija pequeña o crece, en PC es ancho fijo */}
+      {/* SECCIÓN DERECHA: CARRITO (Se mantiene igual) */}
       <div className="w-full lg:w-96 flex flex-col bg-white rounded-2xl shadow-soft border border-slate-200 lg:h-full order-1 lg:order-2 shrink-0 max-h-[40vh] lg:max-h-none">
-        
-        {/* Header Carrito */}
         <div className="p-3 lg:p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center shrink-0">
             <h3 className="font-bold text-slate-800 flex items-center gap-2 text-sm lg:text-base">
               <ShoppingCart size={20} className="text-indigo-600"/> 
@@ -173,7 +171,6 @@ export const NewSaleTab = () => {
             <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded-full">{cart.length} ítems</span>
         </div>
 
-        {/* Lista Ítems Carrito (Scrollable) */}
         <div className="flex-1 overflow-y-auto p-3 lg:p-4 space-y-2 lg:space-y-3 custom-scrollbar min-h-0">
           {cart.length === 0 ? (
             <div className="h-20 lg:h-full flex flex-col items-center justify-center text-slate-400 space-y-2">
@@ -182,18 +179,15 @@ export const NewSaleTab = () => {
           ) : (
             cart.map(item => (
               <div key={item.id} className="flex items-center gap-2 lg:gap-3 p-2 lg:p-3 bg-white border border-slate-100 rounded-xl shadow-sm hover:border-indigo-100 transition-colors group">
-                {/* Imagen pequeña */}
                 <div className="w-10 h-10 lg:w-12 lg:h-12 bg-slate-100 rounded-lg overflow-hidden shrink-0 hidden sm:block">
                     {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-400"><Package size={16}/></div>}
                 </div>
                 
-                {/* Info */}
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-slate-700 text-xs lg:text-sm truncate">{item.name}</p>
                   <p className="text-[10px] lg:text-xs text-slate-400">${item.price.toLocaleString()} x {item.quantity}</p>
                 </div>
 
-                {/* Controles Cantidad */}
                 <div className="flex flex-col items-end gap-1">
                   <div className="font-bold text-slate-800 text-xs lg:text-sm">${(item.price * item.quantity).toLocaleString()}</div>
                   <div className="flex items-center gap-1 bg-slate-50 rounded-lg p-0.5 border border-slate-100">
@@ -203,14 +197,12 @@ export const NewSaleTab = () => {
                   </div>
                 </div>
 
-                {/* Eliminar */}
                 <button onClick={(e) => {e.stopPropagation(); removeFromCart(item.id)}} className="text-slate-300 hover:text-red-500 p-1 lg:opacity-0 lg:group-hover:opacity-100 transition-all"><Trash2 size={16} /></button>
               </div>
             ))
           )}
         </div>
 
-        {/* Footer Totales */}
         <div className="p-3 lg:p-5 bg-slate-50 border-t border-slate-200 shrink-0">
           <div className="flex justify-between items-end mb-3 lg:mb-4">
             <span className="text-slate-500 font-medium text-sm">Total</span>
@@ -226,7 +218,7 @@ export const NewSaleTab = () => {
         </div>
       </div>
 
-      {/* --- MODAL DE SELECCIÓN DE PAGO (Responsive) --- */}
+      {/* --- MODAL DE SELECCIÓN DE PAGO --- */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md p-6 shadow-2xl scale-100 animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-200 relative pb-10 sm:pb-6">
