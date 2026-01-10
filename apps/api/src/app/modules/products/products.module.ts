@@ -4,12 +4,14 @@ import { ProductsService } from './products.service';
 import { ProductsController } from './products.controller';
 import { Product } from './entities/product.entity'; 
 import { AuthModule } from '../auth/auth.module'; 
+// IMPORTAR CLOUDINARY
+import { CloudinaryModule } from '../cloudinary/cloudinary.module'; 
 
 @Module({
   imports: [
-    // Registramos la entidad para que el servicio pueda usar el Repository
     TypeOrmModule.forFeature([Product]), 
-    AuthModule 
+    AuthModule,
+    CloudinaryModule // <--- AGREGADO AQUÍ
   ],
   controllers: [ProductsController],
   providers: [ProductsService],

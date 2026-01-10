@@ -14,6 +14,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import * as Joi from 'joi';
 import { join } from 'path';
+import { CloudinaryProvider } from './modules/cloudinary/cloudinary.provider';
+import { CloudinaryService } from './modules/cloudinary/cloudinary.service';
 
 @Module({
   imports: [
@@ -62,6 +64,7 @@ import { join } from 'path';
     UsersModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, CloudinaryProvider, CloudinaryService],
+  exports: [CloudinaryService]
 })
 export class AppModule {}
