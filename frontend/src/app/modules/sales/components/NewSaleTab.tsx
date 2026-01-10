@@ -14,23 +14,28 @@ interface Product {
 }
 interface CartItem extends Product { quantity: number; }
 
-// --- CORRECCIÓN DE IMAGEN: Detecta automáticamente dónde está ---
+// --- SOLUCIÓN FINAL IMÁGENES ---
 const getImageUrl = (imagePath?: string) => {
   if (!imagePath) return undefined;
   
-  // Si ya es una URL completa (ej: https://aws.s3...), la dejamos igual
-  if (imagePath.startsWith('http')) return imagePath;
+  // 1. LIMPIEZA DE "BASURA" LOCALHOST
+  // Si la base de datos guardó "http://localhost:3000/uploads...", lo borramos.
+  let cleanPath = imagePath
+    .replace('http://localhost:3000', '')
+    .replace('localhost:3000', '');
 
-  // Limpiamos la barra inicial si existe
-  const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
+  // 2. Si después de limpiar sigue siendo una URL externa real (ej: https://amazon.s3...), la usamos.
+  if (cleanPath.startsWith('http')) return cleanPath;
 
-  // LÓGICA AUTOMÁTICA:
-  // Si estamos en localhost, usa localhost:3000.
-  // Si estamos en nortedev.cl, usa la url actual (https://www.nortedev.cl)
-  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  // 3. Quitamos barras iniciales para evitar dobles slash (//)
+  cleanPath = cleanPath.startsWith('/') ? cleanPath.slice(1) : cleanPath;
+
+  // 4. DEFINIR EL DOMINIO BASE
+  // Si estamos en nortedev.cl, usamos ese dominio. Si no, usamos localhost.
+  const isProd = window.location.hostname.includes('nortedev.cl');
   
-  // Ajusta esto si tu backend está en otro puerto en local
-  const baseUrl = isLocal ? 'http://localhost:3000' : window.location.origin;
+  // AQUÍ ESTÁ LA CLAVE: En producción forzamos HTTPS y tu dominio
+  const baseUrl = isProd ? 'https://www.nortedev.cl' : 'http://localhost:3000';
 
   return `${baseUrl}/${cleanPath}`;
 };
@@ -111,7 +116,7 @@ export const NewSaleTab = () => {
   return (
     <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-full min-h-0">
       
-      {/* SECCIÓN IZQUIERDA: PRODUCTOS (OCUPA TODO EL ESPACIO DISPONIBLE) */}
+      {/* SECCIÓN IZQUIERDA: PRODUCTOS */}
       <div 
         id="tour-sales-products" 
         className="flex-1 flex flex-col bg-white rounded-2xl shadow-soft border border-slate-200 overflow-hidden min-h-0 order-1 lg:order-1"
@@ -143,7 +148,7 @@ export const NewSaleTab = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4 pb-20 lg:pb-0"> 
               {filteredProducts.map(product => (
                 <div key={product.id} onClick={() => addToCart(product)} className={`group bg-white rounded-xl border border-slate-100 shadow-sm transition-all cursor-pointer relative overflow-hidden flex flex-col active:scale-95 duration-150 ${product.stock === 0 ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:border-indigo-300 hover:shadow-md'}`}>
-                  {/* Imagen CORREGIDA */}
+                  {/* Imagen */}
                   <div className="w-full aspect-square bg-slate-100 relative overflow-hidden">
                       {product.imageUrl ? (
                         <img 
@@ -192,8 +197,7 @@ export const NewSaleTab = () => {
         </div>
       </div>
 
-      {/* SECCIÓN DERECHA: CARRITO (AHORA MÁS PEQUEÑO EN MÓVIL) */}
-      {/* CORRECCIÓN: order-2 (para ir abajo en móvil), max-h-[30vh] (solo ocupa el 30% de la pantalla) */}
+      {/* SECCIÓN DERECHA: CARRITO (PEQUEÑO EN MÓVIL) */}
       <div className="w-full lg:w-96 flex flex-col bg-white rounded-2xl shadow-soft border border-slate-200 lg:h-full order-2 lg:order-2 shrink-0 h-auto max-h-[35vh] lg:max-h-none border-t-4 lg:border-t-0 border-indigo-50 lg:border-none shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] lg:shadow-soft z-20">
         
         {/* Header Carrito */}
@@ -206,7 +210,7 @@ export const NewSaleTab = () => {
             <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded-full">{cart.length} ítems</span>
         </div>
 
-        {/* Lista de Items (Scrollable pequeño) */}
+        {/* Lista de Items */}
         <div className="flex-1 overflow-y-auto p-2 lg:p-4 space-y-2 lg:space-y-3 custom-scrollbar min-h-0">
           {cart.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-2 py-4">
@@ -215,6 +219,7 @@ export const NewSaleTab = () => {
           ) : (
             cart.map(item => (
               <div key={item.id} className="flex items-center gap-2 lg:gap-3 p-2 lg:p-3 bg-white border border-slate-100 rounded-xl shadow-sm hover:border-indigo-100 transition-colors group">
+                {/* Imagen en Carrito (También usa getImageUrl) */}
                 <div className="w-10 h-10 lg:w-12 lg:h-12 bg-slate-100 rounded-lg overflow-hidden shrink-0 hidden sm:block">
                     {item.imageUrl ? <img src={getImageUrl(item.imageUrl)} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-400"><Package size={16}/></div>}
                 </div>
@@ -239,7 +244,7 @@ export const NewSaleTab = () => {
           )}
         </div>
 
-        {/* Footer Totales (BOTÓN GRANDE) */}
+        {/* Footer Totales */}
         <div className="p-3 lg:p-5 bg-slate-50 border-t border-slate-200 shrink-0">
           <div className="flex justify-between items-end mb-2 lg:mb-4">
             <span className="text-slate-500 font-medium text-sm">Total</span>
