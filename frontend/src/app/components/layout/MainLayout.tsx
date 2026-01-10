@@ -15,7 +15,7 @@ export const MainLayout = () => {
 
       {/* BOTÓN HAMBURGUESA (Móvil) */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b px-4 py-3 flex items-center justify-between shadow-sm">
-        <span className="font-bold text-indigo-600 text-lg">Nexus ERP</span>
+        <span className="font-bold text-indigo-600 text-lg">Norte DEV</span>
         <button 
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className="p-2 rounded-lg hover:bg-slate-100 text-slate-600"
