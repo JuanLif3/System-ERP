@@ -8,15 +8,32 @@ async function bootstrap() {
   const globalPrefix = 'api';
   app.setGlobalPrefix(globalPrefix);
 
-  // --- CORRECCIÓN CORS PARA PRODUCCIÓN ---
+  // --- LISTA DE DOMINIOS PERMITIDOS ---
+  // Aquí definimos quién tiene llave para entrar a tu casa
+  const allowedOrigins = [
+    'http://localhost:4200',        // Desarrollo Angular/React
+    'http://localhost:5173',        // Desarrollo Vite
+    'https://nortedev.cl',          // <--- TU DOMINIO OFICIAL
+    'https://www.nortedev.cl',      // <--- TU DOMINIO CON WWW
+    process.env.FRONTEND_URL,       // La URL de Vercel original (system-erp...)
+  ];
+
+  // --- CONFIGURACIÓN CORS INTELIGENTE ---
   app.enableCors({
-    // Aceptamos la URL que venga en variables de entorno O localhost (para que sigas desarrollando)
-    origin: [
-      'http://localhost:4200',
-      'http://localhost:5173', // Por si usas Vite en local
-      process.env.FRONTEND_URL || '*', // La URL de Vercel (la pondremos luego en Render)
-    ],
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    origin: (origin, callback) => {
+      // 1. Permitir solicitudes sin origen (ej: Postman o llamadas servidor a servidor)
+      if (!origin) return callback(null, true);
+
+      // 2. Verificar si el origen está en la lista blanca
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        // 3. Si no está, lo bloqueamos y avisamos en el log (útil para debug en Railway)
+        Logger.warn(`⛔ Bloqueado por CORS: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
 
@@ -34,6 +51,8 @@ async function bootstrap() {
   Logger.log(
     `🚀 Application is running on: http://localhost:${port}/${globalPrefix}`
   );
+  // Imprimimos en consola los dominios aceptados para que estés seguro al iniciar
+  Logger.log(`🔓 Orígenes permitidos: ${allowedOrigins.filter(o => o).join(', ')}`);
 }
 
 bootstrap();
