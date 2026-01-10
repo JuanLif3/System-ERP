@@ -1,21 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
-import toStream = require('streamifier');
+import * as streamifier from 'streamifier';
 
 @Injectable()
 export class CloudinaryService {
-  // Usamos 'any' para evitar el error "Namespace 'global.Express' has no exported member 'Multer'"
-  async uploadImage(file: any): Promise<any> {
+  uploadImage(file: Express.Multer.File): Promise<string> {
     return new Promise((resolve, reject) => {
-      const upload = cloudinary.uploader.upload_stream(
-        { folder: 'nexus-erp-products' }, // Carpeta en Cloudinary
+      const uploadStream = cloudinary.uploader.upload_stream(
+        { folder: 'system-erp-products' },
         (error, result) => {
           if (error) return reject(error);
-          resolve(result);
+          resolve(result.secure_url);
         },
       );
-      
-      toStream.createReadStream(file.buffer).pipe(upload);
+      streamifier.createReadStream(file.buffer).pipe(uploadStream);
     });
   }
 }

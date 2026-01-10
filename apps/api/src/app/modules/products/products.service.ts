@@ -1,11 +1,19 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-
+import { Repository, DataSource } from 'typeorm';
 import { CreateProductDto } from './dto/create-product.dto';
-import { Product } from './entities/product.entity';
-import { User } from '../users/entities/user.entity';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { Product } from './entities/product.entity';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
+// Importamos multer para evitar errores de tipado
+import 'multer';
+import { User } from '../users/entities/user.entity';
 
 @Injectable()
 export class ProductsService {
@@ -14,61 +22,100 @@ export class ProductsService {
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+    private readonly dataSource: DataSource,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
-  async create(createProductDto: CreateProductDto, user: User) {
-    const product = this.productRepository.create({
-      ...createProductDto,
-      // Mapeo manual: Conectamos el ID que viene del formulario con la relación
-      category: { id: createProductDto.categoryId }, 
-      company: user.company,
-    });
+  // --- CREAR ---
+  async create(createProductDto: CreateProductDto, user: User, file?: Express.Multer.File) {
+    try {
+      let imageUrl = null;
+
+      // 1. Subida a Cloudinary si existe archivo
+      if (file) {
+        imageUrl = await this.cloudinaryService.uploadImage(file);
+      }
+
+      // 2. Creación en BD
+      const product = this.productRepository.create({
+        ...createProductDto,
+        imageUrl: imageUrl,
+        company: user.company, 
+        // Eliminamos user: user porque no existe en la entidad Product
+      });
+
+      await this.productRepository.save(product);
+      return product;
+    } catch (error) {
+      this.handleDBExceptions(error);
+    }
+  }
+
+  // --- BUSCAR TODOS (Paginado + Multi-tenant) ---
+  async findAll(queryParameters: any, user: User) {
+    const { limit = 10, offset = 0 } = queryParameters;
     
-    return await this.productRepository.save(product);
-  }
-
-  async findAll(user: User) {
     return this.productRepository.find({
+      take: limit,
+      skip: offset,
       where: { 
-        company: { id: user.company.id } 
-        // ¡IMPORTANTE! No pongas "isActive: true" aquí.
-        // Queremos ver TODOS los productos en el inventario.
+        company: { id: user.company.id } // Solo productos de SU empresa
       },
-      relations: ['category'], // Para que se vea el nombre de la categoría
-      order: { name: 'ASC' },   // Ordenar alfabéticamente por defecto
+      relations: ['category'], // Opcional: traer relaciones si las necesitas
     });
   }
 
-  // Helper de errores
-  private handleDBErrors(error: any): never {
+  // --- BUSCAR UNO ---
+  async findOne(id: string, user: User) {
+    const product = await this.productRepository.findOne({
+      where: { 
+        id, 
+        company: { id: user.company.id } 
+      },
+      relations: ['category'],
+    });
+
+    if (!product) throw new NotFoundException(`Product with id: ${id} not found`);
+    return product;
+  }
+
+  // --- ACTUALIZAR ---
+  async update(id: string, updateProductDto: UpdateProductDto, user: User, file?: Express.Multer.File) {
+    // 1. Verificamos que exista y pertenezca a la empresa
+    const product = await this.findOne(id, user);
+
+    // 2. Si hay nueva imagen, subirla
+    if (file) {
+      try {
+        const newImageUrl = await this.cloudinaryService.uploadImage(file);
+        product.imageUrl = newImageUrl;
+      } catch (error) {
+        this.logger.error('Error uploading to Cloudinary', error);
+        throw new InternalServerErrorException('Could not upload image');
+      }
+    }
+
+    // 3. Merge de datos y guardado
+    this.productRepository.merge(product, updateProductDto);
+    
+    try {
+      return await this.productRepository.save(product);
+    } catch (error) {
+      this.handleDBExceptions(error);
+    }
+  }
+
+  // --- ELIMINAR ---
+  async remove(id: string, user: User) {
+    const product = await this.findOne(id, user);
+    await this.productRepository.remove(product);
+    return { message: 'Product deleted successfully' };
+  }
+
+  // --- MANEJO DE ERRORES ---
+  private handleDBExceptions(error: any) {
+    if (error.code === '23505') throw new BadRequestException(error.detail);
     this.logger.error(error);
-    throw new BadRequestException('Error gestionando productos (Revisar logs)');
+    throw new InternalServerErrorException('Unexpected error, check server logs');
   }
-
-  async update(id: string, updateProductDto: UpdateProductDto, user: User) {
-    // 1. Buscamos el producto asegurando que pertenezca a la empresa del usuario
-    const product = await this.productRepository.findOne({ 
-        where: { id, company: { id: user.company.id } } 
-    });
-
-    if (!product) {
-        throw new NotFoundException(`Producto con ID ${id} no encontrado`);
-    }
-
-    // 2. Separamos categoryId si viene en la petición
-    const { categoryId, ...data } = updateProductDto;
-
-    // 3. Fusionamos los datos simples (name, price, isActive, etc.)
-    this.productRepository.merge(product, data);
-
-    // 4. Si intentan cambiar la categoría, actualizamos la relación manualmente
-    if (categoryId) {
-        product.category = { id: categoryId } as any;
-    }
-
-    // 5. Guardamos
-    return await this.productRepository.save(product);
-  }
-
-  
 }
