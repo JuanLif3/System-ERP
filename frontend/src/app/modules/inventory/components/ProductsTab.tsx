@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { Package, Plus, Search, Edit, Power, Upload, X, Filter, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { Package, Plus, Search, Edit, Power, Upload, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../../../config/api';
 import { useNotification } from '../../../context/NotificationContext';
 
@@ -26,15 +26,13 @@ export const ProductsTab = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // --- ESTADOS DE FILTRO Y PAGINACIÓN ---
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [sortOrder, setSortOrder] = useState(''); // 'expiry-asc', 'expiry-desc', etc.
+  const [sortOrder, setSortOrder] = useState('');
   
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 35;
 
-  // --- ESTADOS DE MODAL ---
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
@@ -65,7 +63,6 @@ export const ProductsTab = () => {
     fetchData();
   }, []);
 
-  // --- LÓGICA DE FILTRADO Y ORDENAMIENTO ---
   const filteredProducts = products
     .filter(p => {
       const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.sku.toLowerCase().includes(searchTerm.toLowerCase());
@@ -78,25 +75,20 @@ export const ProductsTab = () => {
         case 'price-desc': return b.price - a.price;
         case 'stock-asc': return a.stock - b.stock;
         case 'stock-desc': return b.stock - a.stock;
-        
-        // --- NUEVOS FILTROS DE VENCIMIENTO ---
-        case 'expiry-asc': // Más próximo a vencer (Los que tienen fecha van primero)
+        case 'expiry-asc': 
             if (!a.expiryDate && !b.expiryDate) return 0;
-            if (!a.expiryDate) return 1; // Si A no tiene fecha, va al final
-            if (!b.expiryDate) return -1; // Si B no tiene fecha, B va al final
+            if (!a.expiryDate) return 1; 
+            if (!b.expiryDate) return -1; 
             return new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime();
-
-        case 'expiry-desc': // Más lejano a vencer
+        case 'expiry-desc': 
             if (!a.expiryDate && !b.expiryDate) return 0;
             if (!a.expiryDate) return 1; 
             if (!b.expiryDate) return -1;
             return new Date(b.expiryDate).getTime() - new Date(a.expiryDate).getTime();
-            
         default: return 0;
       }
     });
 
-  // --- LÓGICA DE PAGINACIÓN ---
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
   const paginatedProducts = filteredProducts.slice(
     (currentPage - 1) * itemsPerPage,
@@ -107,7 +99,6 @@ export const ProductsTab = () => {
     setCurrentPage(1);
   }, [searchTerm, selectedCategory, sortOrder]);
 
-  // --- MANEJADORES DEL MODAL ---
   const openCreateModal = () => {
     setEditingProduct(null);
     setFormData({ name: '', sku: '', price: 0, stock: 0, categoryId: '', imageUrl: '', hasExpiry: false, expiryDate: '' });
@@ -144,6 +135,13 @@ export const ProductsTab = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // VALIDACIÓN PREVIA EN FRONTEND
+    if (!formData.categoryId) {
+        notify.error("Debes seleccionar una categoría");
+        return;
+    }
+
     const payload = new FormData();
     payload.append('name', formData.name);
     payload.append('sku', formData.sku);
@@ -155,7 +153,10 @@ export const ProductsTab = () => {
        payload.append('expiryDate', formData.expiryDate);
     } 
 
-    if (selectedFile) payload.append('file', selectedFile);
+    // --- CORRECCIÓN AQUÍ: 'image' en lugar de 'file' ---
+    if (selectedFile) {
+        payload.append('image', selectedFile); 
+    }
 
     try {
       if (editingProduct) {
@@ -167,9 +168,15 @@ export const ProductsTab = () => {
       }
       setShowModal(false);
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      notify.error('Error al guardar');
+      // Mostrar mensaje exacto del servidor si existe
+      const serverMessage = error.response?.data?.message;
+      if (Array.isArray(serverMessage)) {
+          notify.error(serverMessage[0]); // Muestra "categoryId must be a string", etc.
+      } else {
+          notify.error(serverMessage || 'Error al guardar');
+      }
     }
   };
 
@@ -186,23 +193,20 @@ export const ProductsTab = () => {
     if (!dateStr) return 'S/F';
     const date = new Date(dateStr);
     const now = new Date();
-    // Cálculo simple de días para dar color
     const diffTime = date.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     let colorClass = 'text-slate-600';
-    if (diffDays < 0) colorClass = 'text-red-600 font-bold'; // Vencido
-    else if (diffDays < 30) colorClass = 'text-orange-600 font-bold'; // Por vencer
+    if (diffDays < 0) colorClass = 'text-red-600 font-bold'; 
+    else if (diffDays < 30) colorClass = 'text-orange-600 font-bold'; 
 
     return <span className={colorClass}>{date.toLocaleDateString('es-CL', { timeZone: 'UTC' })}</span>;
   };
 
   return (
     <div className="space-y-4">
-      {/* BARRA SUPERIOR DE FILTROS */}
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        
-        {/* BUSCADOR */}
         <div className="relative w-full md:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
           <input 
@@ -212,10 +216,7 @@ export const ProductsTab = () => {
             onChange={e => setSearchTerm(e.target.value)}
           />
         </div>
-
-        {/* FILTROS AVANZADOS */}
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            {/* Filtro Categoría */}
             <select 
                 className="bg-slate-50 border border-slate-200 text-slate-600 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none"
                 value={selectedCategory}
@@ -224,8 +225,6 @@ export const ProductsTab = () => {
                 <option value="">Todas las Categorías</option>
                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
-
-            {/* Ordenar Por (ACTUALIZADO) */}
             <select 
                 className="bg-slate-50 border border-slate-200 text-slate-600 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none"
                 value={sortOrder}
@@ -239,15 +238,13 @@ export const ProductsTab = () => {
                 <option className="text-orange-600 font-bold" value="expiry-asc">Vencimiento: Más Próximo</option>
                 <option className="text-green-600 font-bold" value="expiry-desc">Vencimiento: Más Lejano</option>
             </select>
-
-            {/* Botón Nuevo */}
             <button onClick={openCreateModal} className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/20 hover:-translate-y-0.5 ml-auto md:ml-2">
                 <Plus size={20} /> Nuevo
             </button>
         </div>
       </div>
 
-      {/* TABLA */}
+      {/* TABLE */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
@@ -315,7 +312,7 @@ export const ProductsTab = () => {
             </table>
         </div>
         
-        {/* PAGINACIÓN */}
+        {/* PAGINATION */}
         <div className="flex justify-between items-center p-4 border-t border-slate-100 bg-slate-50/50">
             <span className="text-xs text-slate-500">
                 Mostrando {paginatedProducts.length} de {filteredProducts.length} productos
@@ -352,7 +349,7 @@ export const ProductsTab = () => {
             </div>
             <div className="p-6">
                 <form onSubmit={handleSave} className="space-y-4">
-                {/* FOTO */}
+                {/* PHOTO UPLOAD */}
                 <div className="flex flex-col items-center justify-center mb-6">
                     <div onClick={() => fileInputRef.current?.click()} className="w-full h-40 border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all relative overflow-hidden group">
                     {previewUrl ? <img src={previewUrl} className="w-full h-full object-cover" /> : <div className="text-center p-4"><Upload className="mx-auto text-slate-400 mb-2"/><p className="text-sm text-slate-600">Subir foto</p></div>}
@@ -360,7 +357,6 @@ export const ProductsTab = () => {
                     <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
                 </div>
 
-                {/* CAMPOS BASICOS */}
                 <div className="grid grid-cols-2 gap-4">
                     <div><label className="text-sm font-medium text-slate-700">Nombre</label><input required className="input-modern" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} /></div>
                     <div><label className="text-sm font-medium text-slate-700">SKU</label><input required className="input-modern" value={formData.sku} onChange={e => setFormData({...formData, sku: e.target.value})} /></div>
@@ -378,7 +374,6 @@ export const ProductsTab = () => {
                     </select>
                 </div>
 
-                {/* VENCIMIENTO */}
                 <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
                     <div className="flex items-center gap-2 mb-2">
                     <input type="checkbox" id="hasExpiry" className="w-4 h-4 text-indigo-600 rounded" checked={formData.hasExpiry} onChange={(e) => setFormData({ ...formData, hasExpiry: e.target.checked, expiryDate: e.target.checked ? formData.expiryDate : '' })} />
