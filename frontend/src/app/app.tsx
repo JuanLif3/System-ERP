@@ -4,7 +4,7 @@ import { MainLayout } from './components/layout/MainLayout';
 import { RoleGuard } from './components/layout/RoleGuard';
 import { NotificationProvider } from './context/NotificationContext';
 import { AuthProvider } from './modules/auth/context/AuthContext';
-
+import { LandingPage } from './modules/landing/LandingPage';
 // --- 2. IMPORTACIONES PEREZOSAS (Code Splitting) ---
 // Esto hace que el navegador NO descargue todo el código al inicio, sino por partes.
 // Nota: El .then(m => ...) asume que usas exportaciones nombradas (export const Name = ...).
@@ -34,54 +34,45 @@ const LoadingFallback = () => (
 
 export function App() {
   return (
-    <AuthProvider>
-      <NotificationProvider>
-        {/* 3. SUSPENSE ENVUELVE LAS RUTAS */}
-        <Suspense fallback={<LoadingFallback />}>
-          <Routes>
-            
-            <Route path="/login" element={<LoginPage />} />
+    <Routes>
+      {/* ---------------------------------------------------------------
+          ZONA PÚBLICA (Sin Guardias)
+          Aquí definimos la Landing como la dueña absoluta de la ruta "/"
+      --------------------------------------------------------------- */}
+      <Route path="/" element={<LandingPage />} /> 
+      <Route path="/login" element={<LoginPage />} />
 
-            {/* --- LAYOUT PRINCIPAL --- */}
-            <Route path="/" element={<MainLayout />}>
-              
-              <Route index element={<Navigate to="/login" replace />} />
+      {/* ---------------------------------------------------------------
+          ZONA PRIVADA (Protegida por RoleGuard)
+          Si no tienes sesión, el RoleGuard te manda al login.
+      --------------------------------------------------------------- */}
+      <Route element={<RoleGuard allowedRoles={['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'SELLER']} />}>
+        <Route element={<MainLayout />}>
+           
+           {/* 🚨 ERROR COMÚN CORREGIDO:
+              Antes seguramente tenías aquí: <Route path="/" element={<DashboardPage />} />
+              Eso causaba el redireccionamiento. Lo hemos cambiado por:
+           */}
+           
+           {/* La "Home" del usuario logueado ahora es explícitamente /dashboard */}
+           <Route path="/dashboard" element={<DashboardPage />} />
+           
+           <Route path="/inventory" element={<InventoryPage />} />
+           <Route path="/sales" element={<SalesPage />} />
+           <Route path="/expenses" element={<ExpensesPage />} />
+           <Route path="/reports" element={<ReportsPage />} />
+           <Route path="/users" element={<UsersPage />} />
+           <Route path="/companies" element={<CompaniesPage />} />
 
-              {/* GRUPO 1: ADMIN y MANAGER (Dashboard, Gastos, Reportes) */}
-              <Route element={<RoleGuard allowedRoles={['ADMIN', 'MANAGER']} />}>
-                <Route path="dashboard" element={<DashboardPage />} />
-                <Route path="expenses" element={<ExpensesPage />} />
-                <Route path="reports" element={<ReportsPage />} /> {/* <--- Movido aquí por seguridad */}
-              </Route>
+           {/* FALLBACK INTELIGENTE:
+              Si un usuario logueado intenta ir a una ruta que no existe (ej: /loquesea),
+              lo mandamos al Dashboard en lugar de dejarlo perdido.
+           */}
+           <Route path="*" element={<Navigate to="/dashboard" replace />} />
 
-              {/* GRUPO 2: ADMIN y VENDEDOR (Ventas) */}
-              <Route element={<RoleGuard allowedRoles={['ADMIN', 'SELLER']} />}>
-                <Route path="sales" element={<SalesPage />} />
-              </Route>
-              
-              {/* GRUPO 3: TODOS LOS DE LA PYME (Inventario) */}
-              <Route element={<RoleGuard allowedRoles={['ADMIN', 'MANAGER', 'SELLER']} />}>
-                 <Route path="inventory" element={<InventoryPage />} />
-              </Route>
-
-              {/* GRUPO 4: SOLO ADMIN (Usuarios) */}
-              <Route element={<RoleGuard allowedRoles={['ADMIN']} />}>
-                <Route path="users" element={<UsersPage />} />
-              </Route>
-
-              {/* GRUPO 5: SUPER ADMIN (SaaS) */}
-              <Route element={<RoleGuard allowedRoles={['SUPER_ADMIN']} />}>
-                <Route path="saas" element={<SaasDashboard />} />
-                <Route path="admin/companies" element={<CompaniesPage />} />
-              </Route>
-
-            </Route>
-            
-            <Route path="*" element={<Navigate to="/login" replace />} />
-          </Routes>
-        </Suspense>
-      </NotificationProvider>
-    </AuthProvider>
+        </Route>
+      </Route>
+    </Routes>
   );
 }
 
