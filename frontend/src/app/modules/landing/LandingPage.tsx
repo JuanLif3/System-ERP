@@ -17,9 +17,9 @@ import {
   Lock,
   ShieldCheck,
   EyeOff,
-  GraduationCap, // 👈 Nuevo icono para estudios
-  Award,         // 👈 Nuevo icono para certificados
-  BookOpen       // 👈 Nuevo icono para estudios en curso
+  GraduationCap,
+  Award,
+  BookOpen
 } from 'lucide-react';
 
 export const LandingPage = () => {
@@ -99,7 +99,7 @@ export const LandingPage = () => {
              <div className="flex gap-4 text-sm">
                 <div className="bg-slate-50 px-3 py-1 rounded border border-slate-200">
                     <span className="text-slate-500 mr-2">Usuario:</span>
-                    <code className="font-mono font-bold text-slate-800 select-all">demo@nexus.cl</code>
+                    <code className="font-mono font-bold text-slate-800 select-all">demo@nortedev.cl</code>
                 </div>
                 <div className="bg-slate-50 px-3 py-1 rounded border border-slate-200">
                     <span className="text-slate-500 mr-2">Pass:</span>
@@ -138,16 +138,21 @@ export const LandingPage = () => {
         </div>
       </section>
 
-      {/* --- SOCIAL PROOF --- */}
-      <section className="py-10 border-y border-slate-100 bg-slate-50/50">
+      {/* --- SOCIAL PROOF (GENÉRICO Y LIMPIO) --- */}
+      <section className="py-12 border-y border-slate-100 bg-slate-50/50">
           <div className="max-w-7xl mx-auto px-4 text-center">
-              <p className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-6">
-                  Ya hay pymes que trabajan conmigo
-              </p>
-              <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16 opacity-70 grayscale hover:grayscale-0 transition-all duration-500">
-                  <div className="flex items-center gap-2 font-bold text-slate-700 text-xl"><Star className="fill-slate-700 text-slate-700"/> Minimarket Don Pepe</div>
-                  <div className="flex items-center gap-2 font-bold text-slate-700 text-xl"><Star className="fill-slate-700 text-slate-700"/> Ferretería Central</div>
-                  <div className="flex items-center gap-2 font-bold text-slate-700 text-xl"><Star className="fill-slate-700 text-slate-700"/> Botillería El Paso</div>
+              <div className="flex flex-col items-center justify-center gap-3">
+                  <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                          <Star key={i} size={24} className="text-yellow-400 fill-yellow-400" />
+                      ))}
+                  </div>
+                  <h3 className="text-xl md:text-2xl font-bold text-slate-700">
+                      Pymes y Emprendedores ya confían en Nexus ERP
+                  </h3>
+                  <p className="text-slate-500 max-w-2xl mx-auto text-sm md:text-base">
+                      Únete a la comunidad de negocios que han ordenado sus finanzas y optimizado su tiempo con nuestra tecnología.
+                  </p>
               </div>
           </div>
       </section>
@@ -280,7 +285,7 @@ export const LandingPage = () => {
         </div>
       </section>
 
-      {/* --- QUIÉN SOY (ABOUT ME) - ACTUALIZADO CON CREDENCIALES --- */}
+      {/* --- QUIÉN SOY (ABOUT ME) --- */}
       <section className="py-24 px-4 bg-white border-b border-slate-100">
           <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-start gap-12">
               <div className="w-48 h-48 shrink-0 relative mx-auto md:mx-0">
@@ -301,9 +306,8 @@ export const LandingPage = () => {
                       sino que te devuelve tiempo para que te enfoques en lo importante: vender más.
                   </p>
                   
-                  {/* --- NUEVA SECCIÓN DE CREDENCIALES --- */}
+                  {/* CREDENCIALES */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                     {/* Credencial 1 */}
                      <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex items-center gap-4 hover:border-indigo-200 transition-colors">
                         <div className="bg-indigo-100 p-2.5 rounded-lg text-indigo-700">
                            <GraduationCap size={24} />
@@ -314,7 +318,6 @@ export const LandingPage = () => {
                         </div>
                      </div>
 
-                     {/* Credencial 2 */}
                      <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex items-center gap-4 hover:border-indigo-200 transition-colors">
                         <div className="bg-blue-100 p-2.5 rounded-lg text-blue-700">
                            <BookOpen size={24} />
@@ -325,7 +328,6 @@ export const LandingPage = () => {
                         </div>
                      </div>
 
-                     {/* Credencial 3 */}
                      <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex items-center gap-4 hover:border-indigo-200 transition-colors md:col-span-2">
                         <div className="bg-emerald-100 p-2.5 rounded-lg text-emerald-700">
                            <Award size={24} />
