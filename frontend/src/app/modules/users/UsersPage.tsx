@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { User, Mail, Shield, Plus, Edit, Search, Power, X, CheckCircle, Lock } from 'lucide-react';
 import { api } from '../../config/api';
 import { useNotification } from '../../context/NotificationContext';
+import { useAuth } from '../../modules/auth/context/AuthContext'; // 👈 Importamos el contexto de Auth
 import clsx from 'clsx';
 
 interface UserData {
@@ -14,6 +15,7 @@ interface UserData {
 
 export const UsersPage = () => {
   const notify = useNotification();
+  const { user } = useAuth(); // 👈 Obtenemos el usuario actual
   const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'active' | 'inactive'>('active');
@@ -23,7 +25,7 @@ export const UsersPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
   
-  // CORRECCIÓN 1: Valor por defecto en MAYÚSCULA ('SELLER' o 'ADMIN')
+  // Valor por defecto en MAYÚSCULA
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -49,7 +51,6 @@ export const UsersPage = () => {
 
   // --- LÓGICA DE FILTRADO ---
   const filteredUsers = users.filter(u => {
-    // Protección null safe por si fullName viene vacío
     const nameMatch = u.fullName ? u.fullName.toLowerCase().includes(searchTerm.toLowerCase()) : false;
     const emailMatch = u.email ? u.email.toLowerCase().includes(searchTerm.toLowerCase()) : false;
     
@@ -59,18 +60,17 @@ export const UsersPage = () => {
   });
 
   // --- ACCIONES ---
-  const handleOpenModal = (user?: UserData) => {
-    if (user) {
-      setEditingUser(user);
+  const handleOpenModal = (targetUser?: UserData) => {
+    if (targetUser) {
+      setEditingUser(targetUser);
       setFormData({ 
-        fullName: user.fullName, 
-        email: user.email, 
+        fullName: targetUser.fullName, 
+        email: targetUser.email, 
         password: '', 
-        roles: user.roles // Se asume que viene en mayúscula del backend
+        roles: targetUser.roles 
       });
     } else {
       setEditingUser(null);
-      // CORRECCIÓN 2: Inicializar con un rol válido (SELLER)
       setFormData({ fullName: '', email: '', password: '', roles: 'SELLER' });
     }
     setShowModal(true);
@@ -78,10 +78,17 @@ export const UsersPage = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // 🔒 BLOQUEO DE SEGURIDAD PARA DEMO
+    if (user?.email === 'demo@nexus.cl') {
+        notify.error('🚫 Modo Demo: Acción restringida. No puedes crear ni modificar usuarios.');
+        return;
+    }
+
     try {
       const payload: any = { ...formData };
       
-      // Validación extra: Si es creación, password es obligatorio en el frontend
+      // Validación extra: Password obligatorio al crear
       if (!editingUser && (!payload.password || payload.password.length < 6)) {
           notify.error("La contraseña es obligatoria y debe tener al menos 6 caracteres");
           return;
@@ -101,23 +108,28 @@ export const UsersPage = () => {
       fetchUsers();
     } catch (error: any) {
       console.error(error);
-      // Mensaje de error más detallado
       const serverError = error.response?.data?.message;
       if (Array.isArray(serverError)) {
-          notify.error(serverError[0]); // Muestra el primer error de validación (ej: "roles must be a valid enum value")
+          notify.error(serverError[0]);
       } else {
           notify.error(serverError || 'Error al guardar usuario');
       }
     }
   };
 
-  const toggleStatus = async (user: UserData) => {
-    const action = user.isActive ? 'desactivar' : 'activar';
-    if (!window.confirm(`¿Estás seguro de ${action} a ${user.fullName}?`)) return;
+  const toggleStatus = async (targetUser: UserData) => {
+    // 🔒 BLOQUEO DE SEGURIDAD PARA DEMO
+    if (user?.email === 'demo@nexus.cl') {
+        notify.error('🚫 Modo Demo: No puedes desactivar usuarios.');
+        return;
+    }
+
+    const action = targetUser.isActive ? 'desactivar' : 'activar';
+    if (!window.confirm(`¿Estás seguro de ${action} a ${targetUser.fullName}?`)) return;
 
     try {
-      await api.patch(`/users/${user.id}`, { isActive: !user.isActive });
-      notify.success(`Usuario ${user.isActive ? 'desactivado' : 'activado'} correctamente`);
+      await api.patch(`/users/${targetUser.id}`, { isActive: !targetUser.isActive });
+      notify.success(`Usuario ${targetUser.isActive ? 'desactivado' : 'activado'} correctamente`);
       fetchUsers();
     } catch (error) {
       notify.error('No se pudo cambiar el estado');
@@ -141,7 +153,7 @@ export const UsersPage = () => {
             className={clsx(
               "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300",
               activeTab === 'active' 
-                ? "bg-white text-indigo-600 shadow-sm" 
+                ? "bg-white text-indigo-600 shadow-sm text-indigo-600" 
                 : "text-slate-500 hover:text-slate-700"
             )}
           >
@@ -201,17 +213,17 @@ export const UsersPage = () => {
             ) : filteredUsers.length === 0 ? (
                 <tr><td colSpan={4} className="p-10 text-center text-slate-400">No se encontraron usuarios en esta sección.</td></tr>
             ) : (
-                filteredUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-slate-50 transition-colors group">
+                filteredUsers.map((u) => (
+                <tr key={u.id} className="hover:bg-slate-50 transition-colors group">
                     <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 border-white shadow-sm ${user.isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>
-                                {(user.fullName || '?').charAt(0).toUpperCase()}
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 border-white shadow-sm ${u.isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>
+                                {(u.fullName || '?').charAt(0).toUpperCase()}
                             </div>
                             <div>
-                                <p className={`font-bold ${user.isActive ? 'text-slate-800' : 'text-slate-500'}`}>{user.fullName}</p>
+                                <p className={`font-bold ${u.isActive ? 'text-slate-800' : 'text-slate-500'}`}>{u.fullName}</p>
                                 <div className="flex items-center gap-1.5 text-slate-400 text-xs">
-                                    <Mail size={12}/> {user.email}
+                                    <Mail size={12}/> {u.email}
                                 </div>
                             </div>
                         </div>
@@ -219,28 +231,28 @@ export const UsersPage = () => {
                     <td className="px-6 py-4">
                         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 font-medium text-xs border border-slate-200 uppercase">
                             <Shield size={12}/>
-                            {user.roles}
+                            {u.roles}
                         </div>
                     </td>
                     <td className="px-6 py-4 text-center">
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${user.isActive ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${user.isActive ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                            {user.isActive ? 'Activo' : 'Inactivo'}
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${u.isActive ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${u.isActive ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                            {u.isActive ? 'Activo' : 'Inactivo'}
                         </span>
                     </td>
                     <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2">
                             <button 
-                                onClick={() => handleOpenModal(user)}
+                                onClick={() => handleOpenModal(u)}
                                 title="Editar usuario"
                                 className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                             >
                                 <Edit size={18} />
                             </button>
                             <button 
-                                onClick={() => toggleStatus(user)}
-                                title={user.isActive ? "Desactivar usuario" : "Activar usuario"}
-                                className={`p-2 rounded-lg transition-colors ${user.isActive ? 'text-slate-400 hover:text-red-600 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'}`}
+                                onClick={() => toggleStatus(u)}
+                                title={u.isActive ? "Desactivar usuario" : "Activar usuario"}
+                                className={`p-2 rounded-lg transition-colors ${u.isActive ? 'text-slate-400 hover:text-red-600 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'}`}
                             >
                                 <Power size={18} />
                             </button>
@@ -256,16 +268,11 @@ export const UsersPage = () => {
       {/* --- MODAL --- */}
       {showModal && (
         <div className="fixed inset-0 z-[9999] overflow-y-auto">
-            {/* Backdrop */}
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowModal(false)}></div>
 
-            {/* Wrapper de Centrado */}
             <div className="flex min-h-full items-center justify-center p-4">
-                
-                {/* Modal */}
                 <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl">
                     
-                    {/* Header */}
                     <div className="flex justify-between items-center p-6 border-b border-slate-100">
                         <h3 className="text-xl font-bold text-slate-900">
                             {editingUser ? 'Editar Usuario' : 'Crear Nuevo Usuario'}
@@ -275,8 +282,15 @@ export const UsersPage = () => {
                         </button>
                     </div>
 
-                    {/* Formulario */}
                     <form onSubmit={handleSave} className="p-6 space-y-4">
+                        {/* AVISO DE DEMO EN EL MODAL */}
+                        {user?.email === 'demo@nexus.cl' && (
+                            <div className="bg-orange-50 border border-orange-200 text-orange-700 text-xs p-3 rounded-lg flex items-center gap-2 mb-4">
+                                <Lock size={14}/>
+                                <span><b>Modo Lectura:</b> Puedes ver el formulario, pero no guardar cambios.</span>
+                            </div>
+                        )}
+
                         <div>
                             <label className="block text-sm font-bold text-slate-700 mb-1">Nombre Completo</label>
                             <div className="relative">
@@ -328,7 +342,6 @@ export const UsersPage = () => {
                             <label className="block text-sm font-bold text-slate-700 mb-1">Rol / Permisos</label>
                             <div className="relative">
                                 <Shield className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                {/* CORRECCIÓN 3: Values en MAYÚSCULAS coincidiendo con roles.enum.ts */}
                                 <select 
                                     className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-slate-900 appearance-none"
                                     value={formData.roles} 
@@ -337,7 +350,6 @@ export const UsersPage = () => {
                                     <option value="ADMIN">Administrador (Acceso Total)</option>
                                     <option value="MANAGER">Gerente (Inventario + Finanzas)</option>
                                     <option value="SELLER">Vendedor (Ventas + Inventario)</option>
-                                    {/* Eliminada la opción "employee" porque no existe en tu Backend */}
                                 </select>
                             </div>
                         </div>

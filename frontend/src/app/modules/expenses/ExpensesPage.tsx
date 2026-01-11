@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../config/api';
 import { useNotification } from '../../context/NotificationContext';
+import { useAuth } from '../auth/context/AuthContext';
 
 interface Expense {
   id: string;
@@ -18,6 +19,8 @@ export const ExpensesPage = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const { user } = useAuth();
+  const isDemo = user?.email === 'demo@nortedev.cl';
 
   // Estados Modal
   const [showModal, setShowModal] = useState(false);
@@ -39,6 +42,12 @@ export const ExpensesPage = () => {
       setLoading(false);
     }
   };
+
+  // 🔒 AVISO
+  const openModal = () => {
+      if (isDemo) notify.info('🎓 Demo: Puedes ver los campos, pero no guardar gastos.');
+      setShowModal(true);
+  }
 
   useEffect(() => {
     fetchExpenses();
@@ -64,6 +73,7 @@ export const ExpensesPage = () => {
   };
 
   const handleDelete = async (id: string) => {
+    if (isDemo) { notify.error('🚫 Demo: No puedes borrar gastos.'); return; }
     if (!window.confirm('¿Estás seguro de eliminar este gasto?')) return;
     try {
       await api.delete(`/expenses/${id}`);
@@ -76,6 +86,7 @@ export const ExpensesPage = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isDemo) { notify.error('🚫 Demo: Acción bloqueada.'); return; }
     const payload = {
         description: formData.description,
         amount: parseFloat(formData.amount),

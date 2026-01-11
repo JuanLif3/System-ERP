@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Tags, Plus, Edit, Trash2, X } from 'lucide-react';
+import { Tag, Plus, Edit, Trash2, X, AlertCircle } from 'lucide-react';
 import { api } from '../../../config/api';
 import { useNotification } from '../../../context/NotificationContext';
+import { useAuth } from '../../auth/context/AuthContext'; // 👈 Importamos Auth
 
 interface Category {
   id: string;
@@ -11,6 +12,9 @@ interface Category {
 
 export const CategoriesTab = () => {
   const notify = useNotification();
+  const { user } = useAuth(); // 👈 Obtenemos usuario
+  const isDemo = user?.email === 'demo@nortedev.cl'; // 👈 Flag Demo
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -35,12 +39,16 @@ export const CategoriesTab = () => {
   }, []);
 
   const openCreate = () => {
+    // 🔒 Aviso
+    if (isDemo) notify.info('🎓 Modo Demo: Puedes ver el formulario, pero no guardar.');
     setEditingCategory(null);
     setForm({ name: '', description: '' });
     setShowModal(true);
   };
 
   const openEdit = (cat: Category) => {
+    // 🔒 Aviso
+    if (isDemo) notify.info('🎓 Modo Demo: Edición simulada (No se guardará).');
     setEditingCategory(cat);
     setForm({ name: cat.name, description: cat.description });
     setShowModal(true);
@@ -48,6 +56,13 @@ export const CategoriesTab = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // 🔒 Bloqueo Guardado
+    if (isDemo) {
+        notify.error('🚫 Demo: No puedes guardar cambios en categorías.');
+        return;
+    }
+
     try {
       if (editingCategory) {
         await api.patch(`/categories/${editingCategory.id}`, form);
@@ -65,6 +80,12 @@ export const CategoriesTab = () => {
   };
 
   const handleDelete = async (id: string) => {
+    // 🔒 Bloqueo Borrado
+    if (isDemo) {
+        notify.error('🚫 Demo: No puedes eliminar categorías.');
+        return;
+    }
+
     if (!window.confirm('¿Eliminar esta categoría? Si tiene productos, no se podrá eliminar.')) return;
     try {
       await api.delete(`/categories/${id}`);
@@ -79,7 +100,6 @@ export const CategoriesTab = () => {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-         {/* BOTÓN NUEVA CATEGORÍA - COLOR INDIGO */}
          <button onClick={openCreate} className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/20 hover:-translate-y-0.5">
            <Plus size={20} /> Nueva Categoría
          </button>
@@ -93,7 +113,7 @@ export const CategoriesTab = () => {
                 <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
-                            <Tags size={20} />
+                            <Tag size={20} />
                         </div>
                         <h4 className="font-bold text-slate-800">{c.name}</h4>
                     </div>
@@ -108,13 +128,21 @@ export const CategoriesTab = () => {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200">
-                <div className="flex justify-between items-center mb-6">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200 overflow-hidden">
+                <div className="flex justify-between items-center p-6 border-b border-slate-100">
                     <h3 className="text-xl font-bold text-slate-800">{editingCategory ? 'Editar' : 'Nueva'} Categoría</h3>
                     <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X size={24}/></button>
                 </div>
-                <form onSubmit={handleSave} className="space-y-4">
+                
+                {/* 🔒 Aviso Visual Demo en Modal */}
+                {isDemo && (
+                    <div className="bg-blue-50 px-6 py-3 border-b border-blue-100 text-blue-700 text-xs flex items-center gap-2">
+                        <AlertCircle size={16}/> <b>Modo Demo:</b> Acciones de guardado deshabilitadas.
+                    </div>
+                )}
+
+                <form onSubmit={handleSave} className="p-6 space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
                         <input required className="w-full border rounded-lg p-2 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
@@ -126,7 +154,6 @@ export const CategoriesTab = () => {
                             value={form.description} onChange={e => setForm({...form, description: e.target.value})} />
                     </div>
                     <div className="flex justify-end gap-3 mt-4 pt-4 border-t">
-                        {/* BOTONES MODAL COLOR INDIGO */}
                         <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm font-medium transition-colors">Cancelar</button>
                         <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium shadow-lg shadow-indigo-600/30 transition-all hover:-translate-y-0.5">Guardar</button>
                     </div>

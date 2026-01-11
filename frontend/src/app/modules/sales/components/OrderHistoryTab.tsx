@@ -33,16 +33,15 @@ export const OrderHistoryTab = () => {
   const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const isDemo = user?.email === 'demo@nortedev.cl'; // 👈 Flag Demo
   
   // --- ESTADOS DE LOS MODALES ---
-  // Inicializamos en NULL para que no aparezcan al cargar
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null); 
   const [requestDeleteOrder, setRequestDeleteOrder] = useState<Order | null>(null); 
   const [deleteReason, setDeleteReason] = useState('');
 
   const notify = useNotification();
 
-  // Verificación robusta de roles (Convierte a string para evitar errores si es null)
   const userRole = user?.roles?.toString().toLowerCase() || '';
   const isAdmin = userRole.includes('admin') || userRole.includes('manager');
 
@@ -62,15 +61,18 @@ export const OrderHistoryTab = () => {
     fetchOrders();
   }, []);
 
-  // --- LÓGICA DEL BOTÓN DE ELIMINAR ---
+  // --- LÓGICA DE ELIMINACIÓN ---
   const handleDeleteClick = (order: Order) => {
-      // Esta función SOLO se ejecuta cuando el usuario hace clic
+      // 🔒 BLOQUEO DEMO
+      if (isDemo) {
+          notify.error('🚫 Demo: No puedes eliminar o anular ventas del historial.');
+          return;
+      }
+
       if (isAdmin) {
-          // Si es Admin, borra directamente
           handleDirectDelete(order.id);
       } else {
-          // Si es Vendedor, ABRE el modal (guarda la orden en el estado)
-          setDeleteReason(''); // Limpiamos el texto anterior
+          setDeleteReason(''); 
           setRequestDeleteOrder(order); 
       }
   }
@@ -93,7 +95,7 @@ export const OrderHistoryTab = () => {
       try {
           await api.post(`/orders/${requestDeleteOrder.id}/request-delete`, { reason: deleteReason });
           notify.success('Solicitud enviada al administrador');
-          setRequestDeleteOrder(null); // Cerramos el modal
+          setRequestDeleteOrder(null);
       } catch (error: any) {
           notify.error(error.response?.data?.message || 'Error al enviar solicitud');
       }
@@ -171,9 +173,9 @@ export const OrderHistoryTab = () => {
                               <Eye size={18} />
                           </button>
                           
-                          {/* ELIMINAR / SOLICITAR (CORREGIDO) */}
+                          {/* ELIMINAR / SOLICITAR */}
                           <button 
-                            onClick={() => handleDeleteClick(order)} // <--- CLAVE: Arrow function implícita en la definición o referencia directa correcta
+                            onClick={() => handleDeleteClick(order)} 
                             className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" 
                             title={isAdmin ? "Eliminar Venta" : "Solicitar Eliminación"}
                           >

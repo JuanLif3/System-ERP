@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Package, Plus, Search, Edit, Power, Upload, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../../../config/api';
 import { useNotification } from '../../../context/NotificationContext';
+import { useAuth } from '../../auth/context/AuthContext';
 
 interface Category {
   id: string;
@@ -22,6 +23,9 @@ interface Product {
 
 export const ProductsTab = () => {
   const notify = useNotification();
+  const { user } = useAuth();
+  const isDemo = user?.email === 'demo@nortedev.cl'; // 👈 Flag Demo
+
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,6 +104,9 @@ export const ProductsTab = () => {
   }, [searchTerm, selectedCategory, sortOrder]);
 
   const openCreateModal = () => {
+    // 🔒 Aviso Demo
+    if (isDemo) notify.info('🎓 Modo Demo: Explora el formulario libremente (No se guardará nada).');
+    
     setEditingProduct(null);
     setFormData({ name: '', sku: '', price: 0, stock: 0, categoryId: '', imageUrl: '', hasExpiry: false, expiryDate: '' });
     setSelectedFile(null);
@@ -108,17 +115,15 @@ export const ProductsTab = () => {
   };
 
   const openEditModal = (product: Product) => {
+    // 🔒 Aviso Demo
+    if (isDemo) notify.info('🎓 Modo Demo: Puedes editar visualmente, pero no guardar.');
+    
     setEditingProduct(product);
     const hasDate = !!(product as any).expiryDate;
     setFormData({
-      name: product.name,
-      sku: product.sku,
-      price: product.price,
-      stock: product.stock,
-      categoryId: product.category?.id || '',
-      imageUrl: (product as any).imageUrl || '',
-      hasExpiry: hasDate,
-      expiryDate: hasDate ? new Date((product as any).expiryDate).toISOString().split('T')[0] : ''
+      name: product.name, sku: product.sku, price: product.price, stock: product.stock,
+      categoryId: product.category?.id || '', imageUrl: (product as any).imageUrl || '',
+      hasExpiry: hasDate, expiryDate: hasDate ? new Date((product as any).expiryDate).toISOString().split('T')[0] : ''
     });
     setSelectedFile(null);
     setPreviewUrl((product as any).imageUrl || null);
@@ -136,7 +141,12 @@ export const ProductsTab = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // VALIDACIÓN PREVIA EN FRONTEND
+    // 🔒 Bloqueo Guardado Demo
+    if (isDemo) {
+        notify.error('🚫 Demo: Acción bloqueada. Los cambios no se guardan en la base de datos.');
+        return;
+    }
+
     if (!formData.categoryId) {
         notify.error("Debes seleccionar una categoría");
         return;
@@ -153,7 +163,6 @@ export const ProductsTab = () => {
        payload.append('expiryDate', formData.expiryDate);
     } 
 
-    // --- CORRECCIÓN AQUÍ: 'image' en lugar de 'file' ---
     if (selectedFile) {
         payload.append('image', selectedFile); 
     }
@@ -170,10 +179,9 @@ export const ProductsTab = () => {
       fetchData();
     } catch (error: any) {
       console.error(error);
-      // Mostrar mensaje exacto del servidor si existe
       const serverMessage = error.response?.data?.message;
       if (Array.isArray(serverMessage)) {
-          notify.error(serverMessage[0]); // Muestra "categoryId must be a string", etc.
+          notify.error(serverMessage[0]);
       } else {
           notify.error(serverMessage || 'Error al guardar');
       }
@@ -181,6 +189,9 @@ export const ProductsTab = () => {
   };
 
   const toggleStatus = async (product: Product) => {
+    // 🔒 Bloqueo Estado Demo
+    if (isDemo) { notify.error('🚫 Demo: No puedes desactivar productos.'); return; }
+
     if (!window.confirm(`¿${product.isActive ? 'Desactivar' : 'Activar'}?`)) return;
     try {
       await api.patch(`/products/${product.id}`, { isActive: !product.isActive });
@@ -347,6 +358,14 @@ export const ProductsTab = () => {
                <h3 className="text-xl font-bold text-slate-800">{editingProduct ? 'Editar' : 'Crear'} Producto</h3>
                <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X size={24}/></button>
             </div>
+            
+            {/* AVISO VISUAL DEMO */}
+            {isDemo && (
+                <div className="bg-blue-50 px-6 py-3 border-b border-blue-100 text-blue-700 text-xs flex items-center gap-2">
+                    <Package size={16}/> <b>Modo Educativo:</b> Puedes rellenar todo, pero el botón Guardar está deshabilitado.
+                </div>
+            )}
+
             <div className="p-6">
                 <form onSubmit={handleSave} className="space-y-4">
                 {/* PHOTO UPLOAD */}

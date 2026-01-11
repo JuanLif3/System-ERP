@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Search, ShoppingCart, Trash2, Plus, CheckCircle, Package, ImageOff, CreditCard, Banknote, ArrowRightLeft, X, Minus } from 'lucide-react';
 import { api } from '../../../config/api';
 import { useNotification } from '../../../context/NotificationContext';
+import { useAuth } from '../../auth/context/AuthContext'; // 👈 Importar Auth
 
 interface Product {
   id: string;
@@ -14,28 +15,20 @@ interface Product {
 }
 interface CartItem extends Product { quantity: number; }
 
-// --- CORRECCIÓN FINAL DE IMAGEN ---
+// --- CORRECCIÓN DE IMAGEN ---
 const getImageUrl = (imagePath?: string) => {
   if (!imagePath) return undefined;
   
-  // 1. PRIMERO LIMPIAMOS EL "LOCALHOST" DE LA BASE DE DATOS
-  // Esto arregla el error: reemplazamos la parte "http://localhost:3000" por nada.
   let cleanPath = imagePath
     .replace('http://localhost:3000', '')
     .replace('https://localhost:3000', '')
     .replace('localhost:3000', '');
 
-  // 2. Si es una URL externa REAL (ej: https://aws.s3...), la devolvemos.
-  // Pero como ya borramos el localhost arriba, esta línea ya no dejará pasar la URL mala.
   if (cleanPath.startsWith('http')) return cleanPath;
 
-  // 3. Limpiamos barras duplicadas
   cleanPath = cleanPath.startsWith('/') ? cleanPath.slice(1) : cleanPath;
 
-  // 4. CONSTRUIMOS LA URL CORRECTA SEGÚN DONDE ESTEMOS
   const isProd = window.location.hostname.includes('nortedev.cl');
-  
-  // Si estamos en nortedev.cl, usamos ese dominio. Si no, usamos localhost.
   const baseUrl = isProd ? 'https://www.nortedev.cl' : 'http://localhost:3000';
 
   return `${baseUrl}/${cleanPath}`;
@@ -43,6 +36,9 @@ const getImageUrl = (imagePath?: string) => {
 
 export const NewSaleTab = () => {
   const notify = useNotification();
+  const { user } = useAuth(); // 👈 Obtener usuario
+  const isDemo = user?.email === 'demo@nortedev.cl'; // 👈 Flag Demo
+
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -90,6 +86,11 @@ export const NewSaleTab = () => {
   };
 
   const processSale = async (paymentMethod: 'CASH' | 'CARD' | 'TRANSFER') => {
+    // 🔒 Lógica Demo: Avisar pero PERMITIR (sin return)
+    if (isDemo) {
+        notify.info('🎓 Modo Demo: Venta registrada en el historial (Stock no afectado en BD real).');
+    }
+
     setLoading(true);
     try {
       const items = cart.map(item => ({ productId: item.id, quantity: item.quantity }));
@@ -146,10 +147,11 @@ export const NewSaleTab = () => {
                </p>
              </div>
           ) : (
-            <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 gap-2 lg:gap-4 pb-20 lg:pb-0">
+            // GRID AJUSTADO: 4 columnas desde móvil (grid-cols-4)
+            <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 gap-2 lg:gap-4 pb-20 lg:pb-0"> 
               {filteredProducts.map(product => (
-                <div key={product.id} onClick={() => addToCart(product)} className={`group bg-white rounded-xl border border-slate-100 shadow-sm transition-all cursor-pointer relative overflow-hidden flex flex-col active:scale-95 duration-150 ${product.stock === 0 ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:border-indigo-300 hover:shadow-md'}`}>
-                  {/* Imagen (Usamos la función corregida) */}
+                <div key={product.id} onClick={() => addToCart(product)} className={`group bg-white rounded-lg lg:rounded-xl border border-slate-100 shadow-sm transition-all cursor-pointer relative overflow-hidden flex flex-col active:scale-95 duration-150 ${product.stock === 0 ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:border-indigo-300 hover:shadow-md'}`}>
+                  {/* Imagen */}
                   <div className="w-full aspect-square bg-slate-100 relative overflow-hidden">
                       {product.imageUrl ? (
                         <img 
@@ -162,33 +164,28 @@ export const NewSaleTab = () => {
                             }}
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-300"><ImageOff size={32} /></div>
+                        <div className="w-full h-full flex items-center justify-center text-slate-300"><ImageOff size={24} /></div>
                       )}
                       
                       {/* Fallback visual */}
-                      <div className="hidden w-full h-full absolute inset-0 flex items-center justify-center text-slate-300 bg-slate-100"><ImageOff size={32} /></div>
+                      <div className="hidden w-full h-full absolute inset-0 flex items-center justify-center text-slate-300 bg-slate-100"><ImageOff size={24} /></div>
 
-                      <div className="absolute top-2 left-2">
-                        <span className={`text-[10px] font-bold px-2 py-1 rounded-full shadow-sm backdrop-blur-md ${product.stock < 5 ? 'bg-red-500/90 text-white' : 'bg-white/90 text-slate-700'}`}>
+                      {/* Stock Badge (Texto pequeño para móvil) */}
+                      <div className="absolute top-1 left-1 lg:top-2 lg:left-2">
+                        <span className={`text-[8px] lg:text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm backdrop-blur-md ${product.stock < 5 ? 'bg-red-500/90 text-white' : 'bg-white/90 text-slate-700'}`}>
                           {product.stock}
                         </span>
                       </div>
-                      
-                      {product.stock > 0 && (
-                        <div className="absolute bottom-2 right-2 hidden lg:block opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
-                          <div className="bg-indigo-600 text-white p-2 rounded-lg shadow-lg"><Plus size={16} /></div>
-                        </div>
-                      )}
                   </div>
 
-                  <div className="p-2.5 lg:p-3 flex flex-col flex-1 justify-between">
+                  <div className="p-1.5 lg:p-3 flex flex-col flex-1 justify-between">
                       <div>
-                        <div className="font-bold text-slate-700 text-xs lg:text-sm line-clamp-2 mb-1 leading-snug">{product.name}</div>
-                        <span className="text-[10px] font-mono text-slate-400 hidden sm:inline-block">{product.sku}</span>
+                        {/* Nombre del producto (Texto pequeño para móvil) */}
+                        <div className="font-bold text-slate-700 text-[10px] lg:text-sm line-clamp-2 mb-1 leading-tight">{product.name}</div>
                       </div>
-                      <div className="mt-2 pt-2 border-t border-slate-50 flex justify-between items-center">
-                        <div className="text-sm lg:text-lg font-bold text-slate-900">${product.price.toLocaleString()}</div>
-                        <div className="lg:hidden bg-indigo-50 text-indigo-600 p-1.5 rounded-md"><Plus size={14}/></div>
+                      <div className="mt-1 pt-1 border-t border-slate-50">
+                        {/* Precio (Texto ajustado) */}
+                        <div className="text-xs lg:text-lg font-bold text-slate-900">${product.price.toLocaleString()}</div>
                       </div>
                   </div>
                 </div>
@@ -198,7 +195,7 @@ export const NewSaleTab = () => {
         </div>
       </div>
 
-      {/* SECCIÓN DERECHA: CARRITO (Mantenemos diseño móvil ajustado) */}
+      {/* SECCIÓN DERECHA: CARRITO (Igual que antes) */}
       <div className="w-full lg:w-96 flex flex-col bg-white rounded-2xl shadow-soft border border-slate-200 lg:h-full order-2 lg:order-2 shrink-0 h-auto max-h-[35vh] lg:max-h-none border-t-4 lg:border-t-0 border-indigo-50 lg:border-none shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] lg:shadow-soft z-20">
         
         <div className="p-2 lg:p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center shrink-0">
@@ -258,7 +255,7 @@ export const NewSaleTab = () => {
         </div>
       </div>
 
-      {/* --- MODAL DE SELECCIÓN DE PAGO --- */}
+      {/* --- MODAL DE PAGO --- */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md p-6 shadow-2xl scale-100 animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-200 relative pb-10 sm:pb-6">
