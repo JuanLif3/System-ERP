@@ -22,11 +22,13 @@ export const UsersPage = () => {
   // Estados del Modal
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
+  
+  // CORRECCIÓN 1: Valor por defecto en MAYÚSCULA ('SELLER' o 'ADMIN')
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     password: '',
-    roles: 'admin' // Valor por defecto
+    roles: 'SELLER' 
   });
 
   const fetchUsers = async () => {
@@ -47,8 +49,11 @@ export const UsersPage = () => {
 
   // --- LÓGICA DE FILTRADO ---
   const filteredUsers = users.filter(u => {
-    const matchesSearch = u.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          u.email.toLowerCase().includes(searchTerm.toLowerCase());
+    // Protección null safe por si fullName viene vacío
+    const nameMatch = u.fullName ? u.fullName.toLowerCase().includes(searchTerm.toLowerCase()) : false;
+    const emailMatch = u.email ? u.email.toLowerCase().includes(searchTerm.toLowerCase()) : false;
+    
+    const matchesSearch = nameMatch || emailMatch;
     const matchesStatus = activeTab === 'active' ? u.isActive : !u.isActive;
     return matchesSearch && matchesStatus;
   });
@@ -60,12 +65,13 @@ export const UsersPage = () => {
       setFormData({ 
         fullName: user.fullName, 
         email: user.email, 
-        password: '', // Password vacío al editar (opcional cambiarlo)
-        roles: user.roles 
+        password: '', 
+        roles: user.roles // Se asume que viene en mayúscula del backend
       });
     } else {
       setEditingUser(null);
-      setFormData({ fullName: '', email: '', password: '', roles: 'employee' });
+      // CORRECCIÓN 2: Inicializar con un rol válido (SELLER)
+      setFormData({ fullName: '', email: '', password: '', roles: 'SELLER' });
     }
     setShowModal(true);
   };
@@ -73,8 +79,14 @@ export const UsersPage = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // Limpiamos datos vacíos (como password en edición)
       const payload: any = { ...formData };
+      
+      // Validación extra: Si es creación, password es obligatorio en el frontend
+      if (!editingUser && (!payload.password || payload.password.length < 6)) {
+          notify.error("La contraseña es obligatoria y debe tener al menos 6 caracteres");
+          return;
+      }
+
       if (editingUser && !payload.password) delete payload.password;
 
       if (editingUser) {
@@ -89,7 +101,13 @@ export const UsersPage = () => {
       fetchUsers();
     } catch (error: any) {
       console.error(error);
-      notify.error(error.response?.data?.message || 'Error al guardar usuario');
+      // Mensaje de error más detallado
+      const serverError = error.response?.data?.message;
+      if (Array.isArray(serverError)) {
+          notify.error(serverError[0]); // Muestra el primer error de validación (ej: "roles must be a valid enum value")
+      } else {
+          notify.error(serverError || 'Error al guardar usuario');
+      }
     }
   };
 
@@ -107,7 +125,7 @@ export const UsersPage = () => {
   };
 
   return (
-    <div className="p-6 space-y-6 animate-fade-in-up">
+    <div className="p-6 space-y-6">
       
       {/* HEADER Y PESTAÑAS */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -123,7 +141,7 @@ export const UsersPage = () => {
             className={clsx(
               "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300",
               activeTab === 'active' 
-                ? "bg-white text-indigo-600 shadow-sm text-indigo-600" 
+                ? "bg-white text-indigo-600 shadow-sm" 
                 : "text-slate-500 hover:text-slate-700"
             )}
           >
@@ -188,7 +206,7 @@ export const UsersPage = () => {
                     <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 border-white shadow-sm ${user.isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>
-                                {user.fullName.charAt(0).toUpperCase()}
+                                {(user.fullName || '?').charAt(0).toUpperCase()}
                             </div>
                             <div>
                                 <p className={`font-bold ${user.isActive ? 'text-slate-800' : 'text-slate-500'}`}>{user.fullName}</p>
@@ -235,69 +253,112 @@ export const UsersPage = () => {
         </table>
       </div>
 
-      {/* MODAL DE CREACIÓN / EDICIÓN */}
+      {/* --- MODAL --- */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold text-slate-900">
-                        {editingUser ? 'Editar Usuario' : 'Crear Nuevo Usuario'}
-                    </h3>
-                    <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
-                </div>
+        <div className="fixed inset-0 z-[9999] overflow-y-auto">
+            {/* Backdrop */}
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowModal(false)}></div>
 
-                <form onSubmit={handleSave} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Nombre Completo</label>
-                        <input required className="input-modern" 
-                            value={formData.fullName} onChange={e => setFormData({...formData, fullName: e.target.value})} />
-                    </div>
+            {/* Wrapper de Centrado */}
+            <div className="flex min-h-full items-center justify-center p-4">
+                
+                {/* Modal */}
+                <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl">
                     
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Correo Electrónico</label>
-                        <input type="email" required className="input-modern" 
-                            value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                    {/* Header */}
+                    <div className="flex justify-between items-center p-6 border-b border-slate-100">
+                        <h3 className="text-xl font-bold text-slate-900">
+                            {editingUser ? 'Editar Usuario' : 'Crear Nuevo Usuario'}
+                        </h3>
+                        <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors">
+                            <X size={24}/>
+                        </button>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">
-                            Contraseña {editingUser && <span className="text-slate-400 font-normal text-xs">(Dejar en blanco para mantener actual)</span>}
-                        </label>
-                        <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
-                            <input 
-                                type="password" 
-                                className="input-modern pl-10"
-                                required={!editingUser} 
-                                minLength={6}
-                                placeholder={editingUser ? "••••••••" : "Mínimo 6 caracteres"}
-                                value={formData.password} 
-                                onChange={e => setFormData({...formData, password: e.target.value})} 
-                            />
+                    {/* Formulario */}
+                    <form onSubmit={handleSave} className="p-6 space-y-4">
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Nombre Completo</label>
+                            <div className="relative">
+                                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                <input 
+                                    required 
+                                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-slate-900"
+                                    value={formData.fullName} 
+                                    onChange={e => setFormData({...formData, fullName: e.target.value})} 
+                                    placeholder="Ej: Juan Pérez"
+                                />
+                            </div>
                         </div>
-                    </div>
+                        
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Correo Electrónico</label>
+                            <div className="relative">
+                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                <input 
+                                    type="email" 
+                                    required 
+                                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-slate-900"
+                                    value={formData.email} 
+                                    onChange={e => setFormData({...formData, email: e.target.value})} 
+                                    placeholder="usuario@empresa.cl"
+                                />
+                            </div>
+                        </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Rol / Permisos</label>
-                        <select className="input-modern bg-white"
-                            value={formData.roles} onChange={e => setFormData({...formData, roles: e.target.value})}
-                        >
-                            <option value="admin">Administrador (Acceso Total)</option>
-                            <option value="manager">Gerente (Inventario + Finanzas)</option>
-                            <option value="seller">Vendedor (Ventas + Inventario)</option>
-                            <option value="employee">Empleado (Solo Ventas)</option>
-                        </select>
-                    </div>
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">
+                                Contraseña {editingUser && <span className="text-slate-400 font-normal text-xs">(Opcional)</span>}
+                            </label>
+                            <div className="relative">
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
+                                <input 
+                                    type="password" 
+                                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-slate-900"
+                                    required={!editingUser} 
+                                    minLength={6}
+                                    placeholder={editingUser ? "••••••••" : "Mínimo 6 caracteres"}
+                                    value={formData.password} 
+                                    onChange={e => setFormData({...formData, password: e.target.value})} 
+                                />
+                            </div>
+                        </div>
 
-                    <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100">
-                        <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg text-sm font-medium transition-colors">
-                            Cancelar
-                        </button>
-                        <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium shadow-lg shadow-indigo-600/30 transition-all hover:-translate-y-0.5">
-                            {editingUser ? 'Guardar Cambios' : 'Crear Usuario'}
-                        </button>
-                    </div>
-                </form>
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Rol / Permisos</label>
+                            <div className="relative">
+                                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                {/* CORRECCIÓN 3: Values en MAYÚSCULAS coincidiendo con roles.enum.ts */}
+                                <select 
+                                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-slate-900 appearance-none"
+                                    value={formData.roles} 
+                                    onChange={e => setFormData({...formData, roles: e.target.value})}
+                                >
+                                    <option value="ADMIN">Administrador (Acceso Total)</option>
+                                    <option value="MANAGER">Gerente (Inventario + Finanzas)</option>
+                                    <option value="SELLER">Vendedor (Ventas + Inventario)</option>
+                                    {/* Eliminada la opción "employee" porque no existe en tu Backend */}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                            <button 
+                                type="button" 
+                                onClick={() => setShowModal(false)} 
+                                className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg text-sm font-bold transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                type="submit" 
+                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-bold shadow-lg shadow-indigo-600/30 transition-all hover:-translate-y-0.5"
+                            >
+                                {editingUser ? 'Guardar Cambios' : 'Crear Usuario'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
       )}
