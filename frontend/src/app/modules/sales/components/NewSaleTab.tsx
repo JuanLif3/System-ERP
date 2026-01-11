@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Search, ShoppingCart, Trash2, Plus, CheckCircle, Package, ImageOff, CreditCard, Banknote, ArrowRightLeft, X, Minus } from 'lucide-react';
+import { 
+  Search, ShoppingCart, Trash2, Plus, CheckCircle, Package, ImageOff, 
+  CreditCard, Banknote, ArrowRightLeft, X, Minus, Info 
+} from 'lucide-react';
 import { api } from '../../../config/api';
 import { useNotification } from '../../../context/NotificationContext';
-import { useAuth } from '../../auth/context/AuthContext'; // 👈 Importar Auth
+import { useAuth } from '../../auth/context/AuthContext';
 
 interface Product {
   id: string;
@@ -15,7 +18,6 @@ interface Product {
 }
 interface CartItem extends Product { quantity: number; }
 
-// --- CORRECCIÓN DE IMAGEN ---
 const getImageUrl = (imagePath?: string) => {
   if (!imagePath) return undefined;
   
@@ -36,8 +38,9 @@ const getImageUrl = (imagePath?: string) => {
 
 export const NewSaleTab = () => {
   const notify = useNotification();
-  const { user } = useAuth(); // 👈 Obtener usuario
-  const isDemo = user?.email === 'demo@nortedev.cl'; // 👈 Flag Demo
+  const { user } = useAuth();
+  // Validamos el usuario demo
+  const isDemo = user?.email === 'demo@nexus.cl';
 
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -86,9 +89,10 @@ export const NewSaleTab = () => {
   };
 
   const processSale = async (paymentMethod: 'CASH' | 'CARD' | 'TRANSFER') => {
-    // 🔒 Lógica Demo: Avisar pero PERMITIR (sin return)
+    // 🔒 BLOQUEO ESTRICTO DEMO
     if (isDemo) {
-        notify.info('🎓 Modo Demo: Venta registrada en el historial (Stock no afectado en BD real).');
+        notify.error('Venta no efectuada, modo demo'); // Mensaje solicitado
+        return; // 🛑 Detiene la ejecución aquí. No llama a la API.
     }
 
     setLoading(true);
@@ -147,7 +151,6 @@ export const NewSaleTab = () => {
                </p>
              </div>
           ) : (
-            // GRID AJUSTADO: 4 columnas desde móvil (grid-cols-4)
             <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 gap-2 lg:gap-4 pb-20 lg:pb-0"> 
               {filteredProducts.map(product => (
                 <div key={product.id} onClick={() => addToCart(product)} className={`group bg-white rounded-lg lg:rounded-xl border border-slate-100 shadow-sm transition-all cursor-pointer relative overflow-hidden flex flex-col active:scale-95 duration-150 ${product.stock === 0 ? 'opacity-60 grayscale cursor-not-allowed' : 'hover:border-indigo-300 hover:shadow-md'}`}>
@@ -167,10 +170,8 @@ export const NewSaleTab = () => {
                         <div className="w-full h-full flex items-center justify-center text-slate-300"><ImageOff size={24} /></div>
                       )}
                       
-                      {/* Fallback visual */}
                       <div className="hidden w-full h-full absolute inset-0 flex items-center justify-center text-slate-300 bg-slate-100"><ImageOff size={24} /></div>
 
-                      {/* Stock Badge (Texto pequeño para móvil) */}
                       <div className="absolute top-1 left-1 lg:top-2 lg:left-2">
                         <span className={`text-[8px] lg:text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm backdrop-blur-md ${product.stock < 5 ? 'bg-red-500/90 text-white' : 'bg-white/90 text-slate-700'}`}>
                           {product.stock}
@@ -180,11 +181,9 @@ export const NewSaleTab = () => {
 
                   <div className="p-1.5 lg:p-3 flex flex-col flex-1 justify-between">
                       <div>
-                        {/* Nombre del producto (Texto pequeño para móvil) */}
                         <div className="font-bold text-slate-700 text-[10px] lg:text-sm line-clamp-2 mb-1 leading-tight">{product.name}</div>
                       </div>
                       <div className="mt-1 pt-1 border-t border-slate-50">
-                        {/* Precio (Texto ajustado) */}
                         <div className="text-xs lg:text-lg font-bold text-slate-900">${product.price.toLocaleString()}</div>
                       </div>
                   </div>
@@ -195,7 +194,7 @@ export const NewSaleTab = () => {
         </div>
       </div>
 
-      {/* SECCIÓN DERECHA: CARRITO (Igual que antes) */}
+      {/* SECCIÓN DERECHA: CARRITO */}
       <div className="w-full lg:w-96 flex flex-col bg-white rounded-2xl shadow-soft border border-slate-200 lg:h-full order-2 lg:order-2 shrink-0 h-auto max-h-[35vh] lg:max-h-none border-t-4 lg:border-t-0 border-indigo-50 lg:border-none shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] lg:shadow-soft z-20">
         
         <div className="p-2 lg:p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center shrink-0">
@@ -266,6 +265,18 @@ export const NewSaleTab = () => {
               <p className="text-slate-500 mt-1 text-sm">Selecciona cómo pagará el cliente</p>
               <div className="mt-4 text-3xl font-bold text-indigo-600">${total.toLocaleString()}</div>
             </div>
+
+            {/* AVISO VISUAL DEMO ACTUALIZADO */}
+            {isDemo && (
+              <div className="mb-6 bg-orange-50 border border-orange-100 rounded-xl p-4 animate-pulse">
+                 <div className="flex items-start gap-3">
+                    <Info className="text-orange-600 shrink-0 mt-0.5" size={20} />
+                    <p className="text-sm text-orange-800 text-left leading-relaxed">
+                       <b>Modo Demo:</b> Funcionalidad de cobro deshabilitada. Al intentar pagar, verás un error y no se afectará la base de datos.
+                    </p>
+                 </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 gap-3">
               <button onClick={() => processSale('CASH')} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 hover:border-green-500 hover:bg-green-50 group transition-all active:bg-green-100">

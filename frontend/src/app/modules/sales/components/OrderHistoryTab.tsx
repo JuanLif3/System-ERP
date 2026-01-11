@@ -33,7 +33,7 @@ export const OrderHistoryTab = () => {
   const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const isDemo = user?.email === 'demo@nortedev.cl'; // 👈 Flag Demo
+  const isDemo = user?.email === 'demo@nexus.cl'; // 👈 Flag Demo
   
   // --- ESTADOS DE LOS MODALES ---
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null); 

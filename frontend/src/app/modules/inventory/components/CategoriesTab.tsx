@@ -13,7 +13,7 @@ interface Category {
 export const CategoriesTab = () => {
   const notify = useNotification();
   const { user } = useAuth(); // 👈 Obtenemos usuario
-  const isDemo = user?.email === 'demo@nortedev.cl'; // 👈 Flag Demo
+  const isDemo = user?.email === 'demo@nexus.cl'; // 👈 Flag Demo
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);

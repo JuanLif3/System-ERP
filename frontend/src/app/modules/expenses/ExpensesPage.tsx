@@ -20,7 +20,7 @@ export const ExpensesPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const { user } = useAuth();
-  const isDemo = user?.email === 'demo@nortedev.cl';
+  const isDemo = user?.email === 'demo@nexus.cl';
 
   // Estados Modal
   const [showModal, setShowModal] = useState(false);

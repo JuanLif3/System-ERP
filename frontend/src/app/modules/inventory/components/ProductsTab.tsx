@@ -24,7 +24,7 @@ interface Product {
 export const ProductsTab = () => {
   const notify = useNotification();
   const { user } = useAuth();
-  const isDemo = user?.email === 'demo@nortedev.cl'; // 👈 Flag Demo
+  const isDemo = user?.email === 'demo@nexus.cl'; // 👈 Flag Demo
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
